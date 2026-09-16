@@ -41,6 +41,7 @@ class BaseErrorDialog extends AlertDialog {
         WindowManager.LayoutParams attrs = getWindow().getAttributes();
         attrs.setTitle("Error Dialog");
         getWindow().setAttributes(attrs);
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF000000));
     }
 
     public void onStart() {

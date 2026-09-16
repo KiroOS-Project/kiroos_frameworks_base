@@ -127,6 +127,7 @@ private:
     status_t initFont(Font* font, const char* fallback);
     bool android();
     bool movie();
+    bool updateMovie();
     void drawText(const char* str, const Font& font, bool bold, int* x, int* y);
     void drawClock(const Font& font, const int xPos, const int yPos);
     bool validClock(const Animation::Part& part);

@@ -19,7 +19,20 @@ Copyright (C) 2014 The Android Open Source Project
         android:height="32dp"
         android:viewportWidth="24.0"
         android:viewportHeight="24.0">
-    <path
-        android:fillColor="#4DFFFFFF"
-        android:pathData="M2.000000,22.000000l20.000000,0.000000L22.000000,2.000000L2.000000,22.000000zM20.000000,20.000000L6.800000,20.000000L20.000000,6.800000L20.000000,20.000000z"/>
+    <!-- Bar 1 -->
+    <path android:pathData="M 4,16.5 A 1.5,1.5 0 0 1 5.5,18 L 5.5,20.5 A 1.5,1.5 0 0 1 4,22 A 1.5,1.5 0 0 1 2.5,20.5 L 2.5,18 A 1.5,1.5 0 0 1 4,16.5 Z"
+          android:fillAlpha="0.3"
+          android:fillColor="#FFFFFFFF" />
+    <!-- Bar 2 -->
+    <path android:pathData="M 9,12 A 1.5,1.5 0 0 1 10.5,13.5 L 10.5,20.5 A 1.5,1.5 0 0 1 9,22 A 1.5,1.5 0 0 1 7.5,20.5 L 7.5,13.5 A 1.5,1.5 0 0 1 9,12 Z"
+          android:fillAlpha="0.3"
+          android:fillColor="#FFFFFFFF" />
+    <!-- Bar 3 -->
+    <path android:pathData="M 14,7.5 A 1.5,1.5 0 0 1 15.5,9 L 15.5,20.5 A 1.5,1.5 0 0 1 14,22 A 1.5,1.5 0 0 1 12.5,20.5 L 12.5,9 A 1.5,1.5 0 0 1 14,7.5 Z"
+          android:fillAlpha="0.3"
+          android:fillColor="#FFFFFFFF" />
+    <!-- Bar 4 -->
+    <path android:pathData="M 19,3 A 1.5,1.5 0 0 1 20.5,4.5 L 20.5,20.5 A 1.5,1.5 0 0 1 19,22 A 1.5,1.5 0 0 1 17.5,20.5 L 17.5,4.5 A 1.5,1.5 0 0 1 19,3 Z"
+          android:fillAlpha="0.3"
+          android:fillColor="#FFFFFFFF" />
 </vector>

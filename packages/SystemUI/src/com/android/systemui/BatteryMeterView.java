@@ -123,17 +123,23 @@ public class BatteryMeterView extends ImageView implements
 
     public void setBatteryController(BatteryController mBatteryController) {
         this.mBatteryController = mBatteryController;
-        mDrawable.setBatteryController(mBatteryController);
+        if (mDrawable != null) {
+            mDrawable.setBatteryController(mBatteryController);
+        }
     }
 
     public void setDarkIntensity(float f) {
-        mDrawable.setDarkIntensity(f);
+        if (mDrawable != null) {
+            mDrawable.setDarkIntensity(f);
+        }
     }
 
     private void updateBatteryStyle(String styleStr) {
-        final int style = styleStr == null ?
+        int style = styleStr == null ?
                 BatteryMeterDrawable.BATTERY_STYLE_PORTRAIT : Integer.parseInt(styleStr);
-
+        if (style == BatteryMeterDrawable.BATTERY_STYLE_CIRCLE) {
+            style = BatteryMeterDrawable.BATTERY_STYLE_PORTRAIT;
+        }
         switch (style) {
             case BatteryMeterDrawable.BATTERY_STYLE_TEXT:
             case BatteryMeterDrawable.BATTERY_STYLE_HIDDEN:
@@ -151,7 +157,9 @@ public class BatteryMeterView extends ImageView implements
     }
 
     private void restoreDrawableAttributes() {
-        mDrawable.setBatteryController(mBatteryController);
-        mDrawable.startListening();
+        if (mDrawable != null) {
+            mDrawable.setBatteryController(mBatteryController);
+            mDrawable.startListening();
+        }
     }
 }

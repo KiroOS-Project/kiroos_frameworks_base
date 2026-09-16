@@ -37,7 +37,7 @@ public class BatteryLevelTextView extends TextView implements
 
     private BatteryController mBatteryController;
 
-    private boolean mRequestedVisibility;
+    private boolean mRequestedVisibility = true;
 
     public BatteryLevelTextView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -50,7 +50,9 @@ public class BatteryLevelTextView extends TextView implements
 
     public void setBatteryController(BatteryController batteryController) {
         mBatteryController = batteryController;
-        mBatteryController.addStateChangedCallback(this);
+        if (mBatteryController != null) {
+            mBatteryController.addStateChangedCallback(this);
+        }
         TunerService.get(getContext()).addTunable(this,
                 STATUS_BAR_SHOW_BATTERY_PERCENT, STATUS_BAR_BATTERY_STYLE);
     }
@@ -74,8 +76,9 @@ public class BatteryLevelTextView extends TextView implements
     public void onTuningChanged(String key, String newValue) {
         switch (key) {
             case STATUS_BAR_SHOW_BATTERY_PERCENT:
-                mRequestedVisibility = newValue != null && Integer.parseInt(newValue) == 2;
-                setVisibility(mRequestedVisibility ? View.VISIBLE : View.GONE);
+                // KiroOS: battery percentage is always visible alongside the battery icon
+                mRequestedVisibility = true;
+                setVisibility(View.VISIBLE);
                 break;
             case STATUS_BAR_BATTERY_STYLE:
                 final int value = newValue == null ?

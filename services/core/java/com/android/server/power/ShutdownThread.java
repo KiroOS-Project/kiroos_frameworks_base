@@ -25,6 +25,12 @@ import android.app.Dialog;
 import android.app.IActivityManager;
 import android.app.KeyguardManager;
 import android.app.ProgressDialog;
+import android.view.ContextThemeWrapper;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
+import android.widget.Button;
+import android.widget.TextView;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.IBluetoothManager;
 import android.media.AudioAttributes;
@@ -161,6 +167,16 @@ public final class ShutdownThread extends Thread {
         return advancedRebootEnabled && !keyguardLocked && isPrimaryUser;
     }
 
+    private static InsetDrawable createAmoledCardDrawable(Context context) {
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(0xFF181818);
+        float density = context.getResources().getDisplayMetrics().density;
+        int cornerRadius = (int) (16 * density + 0.5f);
+        int inset = (int) (16 * density + 0.5f);
+        gd.setCornerRadius(cornerRadius);
+        return new InsetDrawable(gd, inset, inset, inset, inset);
+    }
+
     static void shutdownInner(final Context context, boolean confirm) {
         // ensure that only one thread is trying to power down.
         // any additional calls are just returned
@@ -210,7 +226,8 @@ public final class ShutdownThread extends Thread {
                 sConfirmDialog.dismiss();
                 sConfirmDialog = null;
             }
-            AlertDialog.Builder confirmDialogBuilder = new AlertDialog.Builder(context)
+            Context themedContext = new ContextThemeWrapper(context, com.android.internal.R.style.Theme_Material_Dialog_Alert);
+            AlertDialog.Builder confirmDialogBuilder = new AlertDialog.Builder(themedContext)
                     .setTitle(mRebootSafeMode
                             ? com.android.internal.R.string.reboot_safemode_title
                             : showRebootOption
@@ -257,6 +274,24 @@ public final class ShutdownThread extends Thread {
             closer.dialog = sConfirmDialog;
             sConfirmDialog.setOnDismissListener(closer);
             sConfirmDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
+            if (sConfirmDialog.getWindow() != null) {
+                sConfirmDialog.getWindow().setBackgroundDrawable(createAmoledCardDrawable(context));
+            }
+            sConfirmDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+                @Override
+                public void onShow(DialogInterface dialog) {
+                    if (sConfirmDialog != null) {
+                        Button p = sConfirmDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+                        if (p != null) p.setTextColor(0xFFFFFFFF);
+                        Button n = sConfirmDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
+                        if (n != null) n.setTextColor(0xFFB0B0B0);
+                        TextView title = (TextView) sConfirmDialog.findViewById(com.android.internal.R.id.alertTitle);
+                        if (title != null) title.setTextColor(0xFFFFFFFF);
+                        TextView message = (TextView) sConfirmDialog.findViewById(android.R.id.message);
+                        if (message != null) message.setTextColor(0xFFFFFFFF);
+                    }
+                }
+            });
             sConfirmDialog.show();
         } else {
             beginShutdownSequence(context);
@@ -343,7 +378,8 @@ public final class ShutdownThread extends Thread {
         }
 
         // Throw up a system dialog to indicate the device is rebooting / shutting down.
-        ProgressDialog pd = new ProgressDialog(context);
+        Context themedPdContext = new ContextThemeWrapper(context, com.android.internal.R.style.Theme_Material_Dialog_Alert);
+        ProgressDialog pd = new ProgressDialog(themedPdContext);
 
         // Path 1: Reboot to recovery for update
         //   Condition: mReason == REBOOT_RECOVERY_UPDATE
@@ -412,6 +448,18 @@ public final class ShutdownThread extends Thread {
         pd.setCancelable(false);
         pd.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
 
+        if (pd.getWindow() != null) {
+            pd.getWindow().setBackgroundDrawable(createAmoledCardDrawable(context));
+        }
+        pd.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override
+            public void onShow(DialogInterface dialog) {
+                TextView title = (TextView) pd.findViewById(com.android.internal.R.id.alertTitle);
+                if (title != null) title.setTextColor(0xFFFFFFFF);
+                TextView message = (TextView) pd.findViewById(android.R.id.message);
+                if (message != null) message.setTextColor(0xFFFFFFFF);
+            }
+        });
         pd.show();
 
         sInstance.mProgressDialog = pd;

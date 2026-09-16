@@ -82,6 +82,7 @@ public class SettingsDrawerActivity extends Activity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mUserManager = UserManager.get(this);
 
         long startTime = System.currentTimeMillis();
 
@@ -271,7 +272,19 @@ public class SettingsDrawerActivity extends Activity {
         }
     }
 
+    public static void clearTileCache() {
+        sDashboardCategories = null;
+        if (sTileCache != null) {
+            sTileCache.clear();
+            sTileCache = null;
+        }
+        sConfigTracker = null;
+    }
+
     public List<DashboardCategory> getDashboardCategories() {
+        if (sConfigTracker != null && sConfigTracker.applyNewConfig(getResources())) {
+            clearTileCache();
+        }
         if (sDashboardCategories == null) {
             sTileCache = new HashMap<>();
             sConfigTracker = new InterestingConfigChanges();
@@ -321,12 +334,18 @@ public class SettingsDrawerActivity extends Activity {
     }
 
     private void updateUserHandlesIfNeeded(Tile tile) {
+        if (mUserManager == null) {
+            mUserManager = UserManager.get(this);
+        }
+        if (mUserManager == null || tile == null || tile.userHandle == null) {
+            return;
+        }
         List<UserHandle> userHandles = tile.userHandle;
 
         for (int i = userHandles.size() - 1; i >= 0; i--) {
-            if (mUserManager.getUserInfo(userHandles.get(i).getIdentifier()) == null) {
+            if (userHandles.get(i) == null || mUserManager.getUserInfo(userHandles.get(i).getIdentifier()) == null) {
                 if (DEBUG) {
-                    Log.d(TAG, "Delete the user: " + userHandles.get(i).getIdentifier());
+                    Log.d(TAG, "Delete the user: " + (userHandles.get(i) != null ? userHandles.get(i).getIdentifier() : "null"));
                 }
                 userHandles.remove(i);
             }

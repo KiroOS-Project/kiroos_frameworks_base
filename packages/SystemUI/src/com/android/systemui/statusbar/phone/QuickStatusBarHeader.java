@@ -141,20 +141,32 @@ public class QuickStatusBarHeader extends BaseStatusBarHeader implements
 
         mSettingsButton = (SettingsButton) findViewById(R.id.settings_button);
         mSettingsContainer = findViewById(R.id.settings_button_container);
-        mSettingsButton.setOnClickListener(this);
+        if (mSettingsButton != null) {
+            mSettingsButton.setOnClickListener(this);
+            if (mSettingsButton.getBackground() instanceof RippleDrawable) {
+                ((RippleDrawable) mSettingsButton.getBackground()).setForceSoftware(true);
+            }
+        }
 
         mAlarmStatusCollapsed = findViewById(R.id.alarm_status_collapsed);
-        mAlarmStatusCollapsed.setOnClickListener(this);
+        if (mAlarmStatusCollapsed != null) {
+            mAlarmStatusCollapsed.setOnClickListener(this);
+        }
         mAlarmStatus = (TextView) findViewById(R.id.alarm_status);
-        mAlarmStatus.setOnClickListener(this);
+        if (mAlarmStatus != null) {
+            mAlarmStatus.setOnClickListener(this);
+        }
 
         mMultiUserSwitch = (MultiUserSwitch) findViewById(R.id.multi_user_switch);
-        mMultiUserAvatar = (ImageView) mMultiUserSwitch.findViewById(R.id.multi_user_avatar);
+        if (mMultiUserSwitch != null) {
+            mMultiUserAvatar = (ImageView) mMultiUserSwitch.findViewById(R.id.multi_user_avatar);
+        }
 
         // RenderThread is doing more harm than good when touching the header (to expand quick
         // settings), so disable it for this view
-        ((RippleDrawable) mSettingsButton.getBackground()).setForceSoftware(true);
-        ((RippleDrawable) mExpandIndicator.getBackground()).setForceSoftware(true);
+        if (mExpandIndicator != null && mExpandIndicator.getBackground() instanceof RippleDrawable) {
+            ((RippleDrawable) mExpandIndicator.getBackground()).setForceSoftware(true);
+        }
 
         updateResources();
     }
@@ -251,7 +263,9 @@ public class QuickStatusBarHeader extends BaseStatusBarHeader implements
 
         updateAlarmVisibilities();
 
-        mExpandIndicator.setExpanded(headerExpansionFraction > EXPAND_INDICATOR_THRESHOLD);
+        if (mExpandIndicator != null) {
+            mExpandIndicator.setExpanded(headerExpansionFraction > EXPAND_INDICATOR_THRESHOLD);
+        }
     }
 
     @Override
@@ -293,9 +307,13 @@ public class QuickStatusBarHeader extends BaseStatusBarHeader implements
                 ? View.VISIBLE : View.INVISIBLE);
         mSettingsContainer.findViewById(R.id.tuner_icon).setVisibility(View.INVISIBLE);
         final boolean isDemo = UserManager.isDeviceInDemoMode(mContext);
-        mMultiUserSwitch.setVisibility(mExpanded && mMultiUserSwitch.hasMultipleUsers() && !isDemo
-                ? View.VISIBLE : View.INVISIBLE);
-        mEdit.setVisibility(isDemo || !mExpanded ? View.INVISIBLE : View.VISIBLE);
+        if (mMultiUserSwitch != null) {
+            mMultiUserSwitch.setVisibility(mExpanded && mMultiUserSwitch.hasMultipleUsers() && !isDemo
+                    ? View.VISIBLE : View.INVISIBLE);
+        }
+        if (mEdit != null) {
+            mEdit.setVisibility(isDemo || !mExpanded ? View.INVISIBLE : View.VISIBLE);
+        }
     }
 
     private void updateDateTimePosition() {
@@ -326,14 +344,16 @@ public class QuickStatusBarHeader extends BaseStatusBarHeader implements
     public void setQSPanel(final QSPanel qsPanel) {
         mQsPanel = qsPanel;
         setupHost(qsPanel.getHost());
-        if (mQsPanel != null) {
+        if (mQsPanel != null && mMultiUserSwitch != null) {
             mMultiUserSwitch.setQsPanel(qsPanel);
         }
     }
 
     public void setupHost(final QSTileHost host) {
         mHost = host;
-        host.setHeaderView(mExpandIndicator);
+        if (mExpandIndicator != null) {
+            host.setHeaderView(mExpandIndicator);
+        }
         mHeaderQsPanel.setQSPanelAndHeader(mQsPanel, this);
         mHeaderQsPanel.setHost(host, null /* No customization in header */);
         setUserInfoController(host.getUserInfoController());

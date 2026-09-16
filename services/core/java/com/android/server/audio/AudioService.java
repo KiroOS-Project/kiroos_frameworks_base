@@ -1277,7 +1277,7 @@ public class AudioService extends IAudioService.Stub {
             sendEncodedSurroundMode(cr);
 
             mVolumeKeysControlRingStream = CMSettings.System.getIntForUser(cr,
-                    CMSettings.System.VOLUME_KEYS_CONTROL_RING_STREAM, 1,
+                    CMSettings.System.VOLUME_KEYS_CONTROL_RING_STREAM, 0,
                     UserHandle.USER_CURRENT) == 1;
         }
 
@@ -3850,21 +3850,8 @@ public class AudioService extends IAudioService.Stub {
                     return AudioSystem.STREAM_VOICE_CALL;
                 }
             } else if (suggestedStreamType == AudioManager.USE_DEFAULT_STREAM_TYPE) {
-                if (isAfMusicActiveRecently(StreamOverride.sDelayMs)) {
-                    if (DEBUG_VOL)
-                        Log.v(TAG, "getActiveStreamType: Forcing STREAM_MUSIC stream active");
-                    return AudioSystem.STREAM_MUSIC;
-                } else {
-                    if (mVolumeKeysControlRingStream) {
-                        if (DEBUG_VOL)
-                            Log.v(TAG, "getActiveStreamType: Forcing STREAM_RING b/c default");
-                        return AudioSystem.STREAM_RING;
-                    } else {
-                        if (DEBUG_VOL)
-                            Log.v(TAG, "getActiveStreamType: Forcing STREAM_MUSIC b/c default");
-                        return AudioSystem.STREAM_MUSIC;
-                    }
-                }
+                // KiroOS: Volume rocker keys strictly default to STREAM_MUSIC (Media)
+                return AudioSystem.STREAM_MUSIC;
             } else if (isAfMusicActiveRecently(0)) {
                 if (DEBUG_VOL)
                     Log.v(TAG, "getActiveStreamType: Forcing STREAM_MUSIC stream active");
@@ -3894,21 +3881,8 @@ public class AudioService extends IAudioService.Stub {
                 if (DEBUG_VOL) Log.v(TAG, "getActiveStreamType: Forcing STREAM_NOTIFICATION");
                 return AudioSystem.STREAM_NOTIFICATION;
             } else if (suggestedStreamType == AudioManager.USE_DEFAULT_STREAM_TYPE) {
-                if (isAfMusicActiveRecently(StreamOverride.sDelayMs)) {
-                    if (DEBUG_VOL) Log.v(TAG, "getActiveStreamType: forcing STREAM_MUSIC");
-                    return AudioSystem.STREAM_MUSIC;
-                } else {
-                    if (mVolumeKeysControlRingStream) {
-                        if (DEBUG_VOL)
-                            Log.v(TAG,
-                                    "getActiveStreamType: using STREAM_NOTIFICATION as default");
-                        return AudioSystem.STREAM_NOTIFICATION;
-                    } else {
-                        if (DEBUG_VOL)
-                            Log.v(TAG, "getActiveStreamType: Forcing STREAM_MUSIC b/c default");
-                        return AudioSystem.STREAM_MUSIC;
-                    }
-                }
+                // KiroOS: Volume rocker keys strictly default to STREAM_MUSIC (Media)
+                return AudioSystem.STREAM_MUSIC;
             }
             break;
         }
@@ -5055,7 +5029,7 @@ public class AudioService extends IAudioService.Stub {
                     updateStreamVolumeAlias(true, TAG);
                 }
                 mVolumeKeysControlRingStream = CMSettings.System.getIntForUser(mContentResolver,
-                        CMSettings.System.VOLUME_KEYS_CONTROL_RING_STREAM, 1,
+                        CMSettings.System.VOLUME_KEYS_CONTROL_RING_STREAM, 0,
                         UserHandle.USER_CURRENT) == 1;
             }
         }

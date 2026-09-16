@@ -34,7 +34,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             style="@android:style/TextAppearance.Material.Subhead"
-            android:textColor="?android:attr/textColorPrimaryInverse"
+            android:textColor="#FFFFFFFF"
         />
         <LinearLayout
             android:layout_width="match_parent"
@@ -49,7 +49,7 @@
                 android:layout_marginEnd="@dimen/qs_footer_dialog_icon_margin"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_qs_vpn"
-                android:tint="?android:attr/textColorPrimaryInverse"
+                android:tint="#FFFFFFFF"
                 android:adjustViewBounds="true"/>
             <LinearLayout
                 android:layout_width="match_parent"
@@ -62,7 +62,7 @@
                     android:paddingTop="?android:attr/dialogPreferredPadding"
                     android:text="@string/monitoring_subtitle_vpn"
                     style="@android:style/TextAppearance.Material.Title"
-                    android:textColor="?android:attr/textColorPrimaryInverse"
+                    android:textColor="#FFFFFFFF"
                 />
                 <TextView
                     android:id="@+id/vpn_warning"
@@ -70,7 +70,7 @@
                     android:layout_height="wrap_content"
                     android:text="@null"
                     style="@android:style/TextAppearance.Material.Subhead"
-                    android:textColor="?android:attr/textColorPrimaryInverse"
+                    android:textColor="#FFFFFFFF"
                 />
             </LinearLayout>
         </LinearLayout>
@@ -87,7 +87,7 @@
                 android:layout_marginEnd="@dimen/qs_footer_dialog_icon_margin"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_qs_network_logging"
-                android:tint="?android:attr/textColorPrimaryInverse"
+                android:tint="#FFFFFFFF"
                 android:alpha="@dimen/qs_footer_dialog_network_logging_icon_alpha"
                 android:adjustViewBounds="true"/>
             <LinearLayout
@@ -101,7 +101,7 @@
                     android:paddingTop="?android:attr/dialogPreferredPadding"
                     android:text="@string/monitoring_subtitle_network_logging"
                     style="@android:style/TextAppearance.Material.Title"
-                    android:textColor="?android:attr/textColorPrimaryInverse"
+                    android:textColor="#FFFFFFFF"
                 />
                 <TextView
                     android:id="@+id/network_logging_warning"
@@ -109,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/monitoring_description_network_logging"
                     style="@android:style/TextAppearance.Material.Subhead"
-                    android:textColor="?android:attr/textColorPrimaryInverse"
+                    android:textColor="#FFFFFFFF"
                 />
             </LinearLayout>
         </LinearLayout>

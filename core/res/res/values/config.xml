@@ -2324,11 +2324,10 @@
          "users" = list of users
          "restart" = restart device
          -->
+    <!-- KiroOS: Compact Essential Power Menu (Spegni e Riavvia only) -->
     <string-array translatable="false" name="config_globalActionsList">
         <item>power</item>
         <item>restart</item>
-        <item>bugreport</item>
-        <item>users</item>
     </string-array>
 
     <!-- Number of milliseconds to hold a wake lock to ensure that drawing is fully

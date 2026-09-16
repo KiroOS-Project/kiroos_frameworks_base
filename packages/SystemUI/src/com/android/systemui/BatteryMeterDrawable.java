@@ -274,8 +274,8 @@ public class BatteryMeterDrawable extends Drawable implements
     }
 
     private void updateShowPercent() {
-        mShowPercent = CMSettings.System.getInt(mContext.getContentResolver(),
-                CMSettings.System.STATUS_BAR_SHOW_BATTERY_PERCENT, 0) == 1;
+        // KiroOS: percentage is always displayed alongside the battery icon, never crammed inside
+        mShowPercent = false;
     }
 
     private int getColorForLevel(int percent) {
@@ -368,6 +368,7 @@ public class BatteryMeterDrawable extends Drawable implements
     }
 
     private void loadBatteryDrawables(Resources res, int style) {
+        if (style == BATTERY_STYLE_CIRCLE) style = BATTERY_STYLE_PORTRAIT;
         if (isThemeApplied()) {
             try {
                 checkBatteryMeterDrawableValid(res, style);
@@ -378,13 +379,19 @@ public class BatteryMeterDrawable extends Drawable implements
 
         final int drawableResId = getBatteryDrawableResourceForStyle(style);
         mBatteryDrawable = (LayerDrawable) mContext.getDrawable(drawableResId);
-        mFrameDrawable = mBatteryDrawable.findDrawableByLayerId(R.id.battery_frame);
-        mFrameDrawable.setTint(mCurrentBackgroundColor != 0
-                ? mCurrentBackgroundColor : res.getColor(R.color.batterymeter_frame_color));
-        // Set the animated vector drawable we will be stop-animating
-        final Drawable levelDrawable = mBatteryDrawable.findDrawableByLayerId(R.id.battery_fill);
-        mLevelDrawable = new StopMotionVectorDrawable(levelDrawable);
-        mBoltDrawable = mBatteryDrawable.findDrawableByLayerId(R.id.battery_charge_indicator);
+        if (mBatteryDrawable != null) {
+            mFrameDrawable = mBatteryDrawable.findDrawableByLayerId(R.id.battery_frame);
+            if (mFrameDrawable != null) {
+                mFrameDrawable.setTint(mCurrentBackgroundColor != 0
+                        ? mCurrentBackgroundColor : res.getColor(R.color.batterymeter_frame_color));
+            }
+            // Set the animated vector drawable we will be stop-animating
+            final Drawable levelDrawable = mBatteryDrawable.findDrawableByLayerId(R.id.battery_fill);
+            if (levelDrawable != null) {
+                mLevelDrawable = new StopMotionVectorDrawable(levelDrawable);
+            }
+            mBoltDrawable = mBatteryDrawable.findDrawableByLayerId(R.id.battery_charge_indicator);
+        }
     }
 
     private boolean isThemeApplied() {
@@ -441,16 +448,10 @@ public class BatteryMeterDrawable extends Drawable implements
     }
 
     private int getBatteryDrawableResourceForStyle(final int style) {
-        switch (style) {
-            case BATTERY_STYLE_LANDSCAPE:
-                return R.drawable.ic_battery_landscape;
-            case BATTERY_STYLE_CIRCLE:
-                return R.drawable.ic_battery_circle;
-            case BATTERY_STYLE_PORTRAIT:
-                return R.drawable.ic_battery_portrait;
-            default:
-                return 0;
+        if (style == BATTERY_STYLE_LANDSCAPE) {
+            return R.drawable.ic_battery_landscape;
         }
+        return R.drawable.ic_battery_portrait;
     }
 
     private int getBatteryDrawableStyleResourceForStyle(final int style) {
@@ -458,11 +459,9 @@ public class BatteryMeterDrawable extends Drawable implements
             case BATTERY_STYLE_LANDSCAPE:
                 return R.style.BatteryMeterViewDrawable_Landscape;
             case BATTERY_STYLE_CIRCLE:
-                return R.style.BatteryMeterViewDrawable_Circle;
             case BATTERY_STYLE_PORTRAIT:
-                return R.style.BatteryMeterViewDrawable_Portrait;
             default:
-                return R.style.BatteryMeterViewDrawable;
+                return R.style.BatteryMeterViewDrawable_Portrait;
         }
     }
 

@@ -254,7 +254,7 @@ easier.
 
     <!-- AlertDialog Styles -->
     <style name="AlertDialog.DeviceDefault" parent="AlertDialog.Material"/>
-    <style name="AlertDialog.DeviceDefault.Light" parent="AlertDialog.Material.Light"/>
+    <style name="AlertDialog.DeviceDefault.Light" parent="AlertDialog.DeviceDefault"/>
 
     <!-- Animation Styles -->
     <style name="Animation.DeviceDefault.Activity" parent="Animation.Material.Activity"/>
@@ -262,7 +262,7 @@ easier.
 
     <!-- DialogWindowTitle Styles -->
     <style name="DialogWindowTitle.DeviceDefault" parent="DialogWindowTitle.Material"/>
-    <style name="DialogWindowTitle.DeviceDefault.Light" parent="DialogWindowTitle.Material.Light"/>
+    <style name="DialogWindowTitle.DeviceDefault.Light" parent="DialogWindowTitle.DeviceDefault"/>
 
     <!-- WindowTitle Styles -->
     <style name="WindowTitle.DeviceDefault" parent="WindowTitle.Material"/>

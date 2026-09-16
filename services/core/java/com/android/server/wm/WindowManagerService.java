@@ -730,9 +730,9 @@ public class WindowManagerService extends IWindowManager.Stub
     PowerManager mPowerManager;
     PowerManagerInternal mPowerManagerInternal;
 
-    float mWindowAnimationScaleSetting = 1.0f;
-    float mTransitionAnimationScaleSetting = 1.0f;
-    float mAnimatorDurationScaleSetting = 1.0f;
+    float mWindowAnimationScaleSetting = 0.75f;
+    float mTransitionAnimationScaleSetting = 0.75f;
+    float mAnimatorDurationScaleSetting = 0.75f;
     boolean mAnimationsDisabled = false;
 
     final InputManagerService mInputManager;
@@ -9164,6 +9164,10 @@ public class WindowManagerService extends IWindowManager.Stub
                     setForcedDisplaySizeLocked(displayContent, width, height);
                     Settings.Global.putString(mContext.getContentResolver(),
                             Settings.Global.DISPLAY_SIZE_FORCED, width + "," + height);
+                    SystemProperties.set("persist.sys.display_width", Integer.toString(width));
+                    SystemProperties.set("persist.sys.display_height", Integer.toString(height));
+                    SystemProperties.set("persist.sys.display_width", Integer.toString(width));
+                    SystemProperties.set("persist.sys.display_height", Integer.toString(height));
                 }
             }
         } finally {
@@ -9274,6 +9278,10 @@ public class WindowManagerService extends IWindowManager.Stub
                             displayContent.mInitialDisplayHeight);
                     Settings.Global.putString(mContext.getContentResolver(),
                             Settings.Global.DISPLAY_SIZE_FORCED, "");
+                    SystemProperties.set("persist.sys.display_width", "");
+                    SystemProperties.set("persist.sys.display_height", "");
+                    SystemProperties.set("persist.sys.display_width", "");
+                    SystemProperties.set("persist.sys.display_height", "");
                 }
             }
         } finally {

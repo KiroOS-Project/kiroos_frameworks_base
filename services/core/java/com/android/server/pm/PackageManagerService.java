@@ -12271,8 +12271,9 @@ public class PackageManagerService extends IPackageManager.Stub {
         final PackageVerificationResponse response = new PackageVerificationResponse(
                 verificationCodeAtTimeout, Binder.getCallingUid());
 
-        if (millisecondsToDelay > PackageManager.MAXIMUM_VERIFICATION_TIMEOUT) {
-            millisecondsToDelay = PackageManager.MAXIMUM_VERIFICATION_TIMEOUT;
+        // Cap verification delay to 15 seconds so dead or slow verifiers never hang installation indefinitely
+        if (millisecondsToDelay > 15000) {
+            millisecondsToDelay = 15000;
         }
         if (millisecondsToDelay < 0) {
             millisecondsToDelay = 0;

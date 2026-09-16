@@ -51,6 +51,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.PorterDuff;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.os.Build;
@@ -415,7 +416,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         AlertParams params = new AlertParams(mContext);
         params.mAdapter = mAdapter;
         params.mOnClickListener = this;
-        params.mForceInverseBackground = true;
+        params.mForceInverseBackground = false;
 
         GlobalActionsDialog dialog = new GlobalActionsDialog(mContext, params);
         dialog.setCanceledOnTouchOutside(false); // Handled by the custom class.
@@ -470,7 +471,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         @Override
         public void onPress() {
             // shutdown by making sure radio and power are handled accordingly.
-            mWindowManagerFuncs.shutdown(false /* confirm */);
+            mWindowManagerFuncs.shutdown(true /* confirm */);
         }
     }
 
@@ -1084,11 +1085,16 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
             } else if (mIconResId != 0) {
                 icon.setImageDrawable(context.getDrawable(mIconResId));
             }
+            if (icon != null) {
+                icon.setColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+            }
             if (mMessage != null) {
                 messageView.setText(mMessage);
             } else {
                 messageView.setText(mMessageResId);
             }
+            messageView.setTextColor(0xFFFFFFFF);
+            statusView.setTextColor(0xFFB0B0B5);
 
             return v;
         }
@@ -1180,6 +1186,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                 icon.setImageDrawable(context.getDrawable(
                         (on ? mEnabledIconResId : mDisabledIconResid)));
                 icon.setEnabled(enabled);
+                icon.setColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
             }
 
             if (statusView != null) {
@@ -1316,6 +1323,15 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                 // Set up click handler
                 itemView.setTag(i);
                 itemView.setOnClickListener(this);
+                if (itemView instanceof ViewGroup) {
+                    ViewGroup vg = (ViewGroup) itemView;
+                    for (int j = 0; j < vg.getChildCount(); j++) {
+                        View child = vg.getChildAt(j);
+                        if (child instanceof ImageView) {
+                            ((ImageView) child).setColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+                        }
+                    }
+                }
             }
             return v;
         }
@@ -1508,13 +1524,13 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
             mAdapter = (MyAdapter) params.mAdapter;
             mWindowTouchSlop = ViewConfiguration.get(context).getScaledWindowTouchSlop();
             params.apply(mAlert);
+            if (getWindow() != null) {
+                getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF000000));
+            }
         }
 
         private static int getDialogTheme(Context context) {
-            TypedValue outValue = new TypedValue();
-            context.getTheme().resolveAttribute(com.android.internal.R.attr.alertDialogTheme,
-                    outValue, true);
-            return outValue.resourceId;
+            return com.android.internal.R.style.Theme_Material_Dialog_Alert;
         }
 
         @Override

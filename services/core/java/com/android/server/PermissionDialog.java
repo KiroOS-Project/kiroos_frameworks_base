@@ -58,6 +58,10 @@ public class PermissionDialog extends BasePermissionDialog {
             int code, int uid, String packageName) {
         super(context);
 
+        if (getWindow() != null) {
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF000000));
+        }
+
         mContext = context;
         Resources res = context.getResources();
 
@@ -90,6 +94,9 @@ public class PermissionDialog extends BasePermissionDialog {
             com.android.internal.R.id.permission_text);
         mChoice = (CheckBox) mView.findViewById(
             com.android.internal.R.id.permission_remember_choice_checkbox);
+        if (mChoice != null) {
+            mChoice.setChecked(true);
+        }
         String name = getAppName(mPackageName);
         if(name == null)
             name = mPackageName;
@@ -129,6 +136,7 @@ public class PermissionDialog extends BasePermissionDialog {
             switch(msg.what) {
                 case ACTION_ALLOWED:
                     mode = AppOpsManager.MODE_ALLOWED;
+                    remember = true;
                     break;
                 case ACTION_IGNORED:
                     mode = AppOpsManager.MODE_IGNORED;

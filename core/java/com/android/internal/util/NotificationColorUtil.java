@@ -249,22 +249,44 @@ public class NotificationColorUtil {
         double[] lab = new double[3];
         ColorUtilsFromCompat.colorToLAB(findFg ? fg : bg, lab);
 
-        double low = 0, high = lab[0];
+        double bgLum = ColorUtilsFromCompat.calculateLuminance(bg);
         final double a = lab[1], b = lab[2];
-        for (int i = 0; i < 15 && high - low > 0.00001; i++) {
-            final double l = (low + high) / 2;
-            if (findFg) {
-                fg = ColorUtilsFromCompat.LABToColor(l, a, b);
-            } else {
-                bg = ColorUtilsFromCompat.LABToColor(l, a, b);
+
+        if (bgLum < 0.5) {
+            // KiroOS Dark/AMOLED background: lighten towards 100 (pure white) to ensure contrast
+            double low = lab[0], high = 100;
+            for (int i = 0; i < 15 && high - low > 0.00001; i++) {
+                final double l = (low + high) / 2;
+                if (findFg) {
+                    fg = ColorUtilsFromCompat.LABToColor(l, a, b);
+                } else {
+                    bg = ColorUtilsFromCompat.LABToColor(l, a, b);
+                }
+                if (ColorUtilsFromCompat.calculateContrast(fg, bg) > minRatio) {
+                    high = l;
+                } else {
+                    low = l;
+                }
             }
-            if (ColorUtilsFromCompat.calculateContrast(fg, bg) > minRatio) {
-                low = l;
-            } else {
-                high = l;
+            return ColorUtilsFromCompat.LABToColor(high, a, b);
+        } else {
+            // Light background: darken towards 0 (black) to ensure contrast
+            double low = 0, high = lab[0];
+            for (int i = 0; i < 15 && high - low > 0.00001; i++) {
+                final double l = (low + high) / 2;
+                if (findFg) {
+                    fg = ColorUtilsFromCompat.LABToColor(l, a, b);
+                } else {
+                    bg = ColorUtilsFromCompat.LABToColor(l, a, b);
+                }
+                if (ColorUtilsFromCompat.calculateContrast(fg, bg) > minRatio) {
+                    low = l;
+                } else {
+                    high = l;
+                }
             }
+            return ColorUtilsFromCompat.LABToColor(low, a, b);
         }
-        return ColorUtilsFromCompat.LABToColor(low, a, b);
     }
 
     /**

@@ -268,11 +268,28 @@ status_t BootAnimation::readyToRun() {
     if (status)
         return -1;
 
+    // KiroOS: respect forced display resolution
+    char propW[PROPERTY_VALUE_MAX] = {0};
+    char propH[PROPERTY_VALUE_MAX] = {0};
+    property_get("persist.sys.display_width", propW, "");
+    property_get("persist.sys.display_height", propH, "");
+    int targetW = dinfo.w;
+    int targetH = dinfo.h;
+    if (propW[0] != '\0' && propH[0] != '\0') {
+        int w = atoi(propW);
+        int h = atoi(propH);
+        if (w > 0 && h > 0) {
+            targetW = w;
+            targetH = h;
+        }
+    }
+
     // create the native surface
     sp<SurfaceControl> control = session()->createSurface(String8("BootAnimation"),
-            dinfo.w, dinfo.h, PIXEL_FORMAT_RGB_565);
+            targetW, targetH, PIXEL_FORMAT_RGB_565);
 
     SurfaceComposerClient::openGlobalTransaction();
+    SurfaceComposerClient::setDisplayProjection(dtoken, 0, Rect(targetW, targetH), Rect(dinfo.w, dinfo.h));
     control->setLayer(0x40000000);
     SurfaceComposerClient::closeGlobalTransaction();
 
@@ -334,9 +351,14 @@ status_t BootAnimation::readyToRun() {
 bool BootAnimation::threadLoop()
 {
     bool r;
-    // We have no bootanimation file, so we use the stock android logo
-    // animation.
-    if (mZipFileName.isEmpty()) {
+    // KiroOS: Check if OTA update installation screen was requested
+    char propUpdating[PROPERTY_VALUE_MAX] = {0};
+    property_get("persist.sys.kiro_updating", propUpdating, "0");
+    bool isUpdateMode = (strcmp(propUpdating, "1") == 0) || (access("/cache/kiro_updating", F_OK) == 0);
+
+    if (isUpdateMode) {
+        r = updateMovie();
+    } else if (mZipFileName.isEmpty()) {
         r = android();
     } else {
         r = movie();
@@ -549,17 +571,28 @@ void BootAnimation::drawText(const char* str, const Font& font, bool bold, int* 
     glBindTexture(GL_TEXTURE_2D, font.texture.name);
 
     const int len = strlen(str);
-    const int strWidth = font.char_width * len;
+    int charW = font.char_width;
+    int charH = font.char_height;
+    if (len > 0 && (charW * len) > (mWidth - 60)) {
+        charW = (mWidth - 60) / len;
+        if (charW < 12) charW = 12;
+        charH = (font.char_height * charW) / font.char_width;
+    }
+    const int strWidth = charW * len;
 
     if (*x == TEXT_CENTER_VALUE) {
         *x = (mWidth - strWidth) / 2;
     } else if (*x < 0) {
         *x = mWidth + *x - strWidth;
     }
+    if (*x < 10) {
+        *x = 10;
+    }
+
     if (*y == TEXT_CENTER_VALUE) {
-        *y = (mHeight - font.char_height) / 2;
+        *y = (mHeight - charH) / 2;
     } else if (*y < 0) {
-        *y = mHeight + *y - font.char_height;
+        *y = mHeight + *y - charH;
     }
 
     int cropRect[4] = { 0, 0, font.char_width, -font.char_height };
@@ -581,9 +614,9 @@ void BootAnimation::drawText(const char* str, const Font& font, bool bold, int* 
         cropRect[1] += bold ? 2 * font.char_height : font.char_height;
         glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_CROP_RECT_OES, cropRect);
 
-        glDrawTexiOES(*x, *y, 0, font.char_width, font.char_height);
+        glDrawTexiOES(*x, *y, 0, charW, charH);
 
-        *x += font.char_width;
+        *x += charW;
     }
 
     glDisable(GL_BLEND);  // Return to the animation's default behaviour
@@ -870,8 +903,18 @@ bool BootAnimation::playAnimation(const Animation& animation)
 {
     const size_t pcount = animation.parts.size();
     nsecs_t frameDuration = s2ns(1) / animation.fps;
-    const int animationX = (mWidth - animation.width) / 2;
-    const int animationY = (mHeight - animation.height) / 2;
+
+    // KiroOS: Dynamic scaling to fit native screen resolution (720p, 1080p, 1440p)
+    float scale = 1.0f;
+    if (animation.width > 0 && animation.height > 0) {
+        float scaleX = (float)mWidth / (float)animation.width;
+        float scaleY = (float)mHeight / (float)animation.height;
+        scale = (scaleX < scaleY) ? scaleX : scaleY;
+    }
+    const int scaledW = (int)(animation.width * scale);
+    const int scaledH = (int)(animation.height * scale);
+    const int animationX = (mWidth - scaledW) / 2;
+    const int animationY = (mHeight - scaledH) / 2;
 
     for (size_t i=0 ; i<pcount ; i++) {
         const Animation::Part& part(animation.parts[i]);
@@ -920,10 +963,12 @@ bool BootAnimation::playAnimation(const Animation& animation)
                     initTexture(frame.map, &w, &h);
                 }
 
-                const int xc = animationX + frame.trimX;
-                const int yc = animationY + frame.trimY;
+                const int frameW = (int)(frame.trimWidth * scale);
+                const int frameH = (int)(frame.trimHeight * scale);
+                const int xc = animationX + (int)(frame.trimX * scale);
+                const int yc = animationY + (int)(frame.trimY * scale);
                 Region clearReg(Rect(mWidth, mHeight));
-                clearReg.subtractSelf(Rect(xc, yc, xc+frame.trimWidth, yc+frame.trimHeight));
+                clearReg.subtractSelf(Rect(xc, yc, xc + frameW, yc + frameH));
                 if (!clearReg.isEmpty()) {
                     Region::const_iterator head(clearReg.begin());
                     Region::const_iterator tail(clearReg.end());
@@ -935,10 +980,7 @@ bool BootAnimation::playAnimation(const Animation& animation)
                     }
                     glDisable(GL_SCISSOR_TEST);
                 }
-                // specify the y center as ceiling((mHeight - frame.trimHeight) / 2)
-                // which is equivalent to mHeight - (yc + frame.trimHeight)
-                glDrawTexiOES(xc, mHeight - (yc + frame.trimHeight),
-                              0, frame.trimWidth, frame.trimHeight);
+                glDrawTexiOES(xc, mHeight - (yc + frameH), 0, frameW, frameH);
                 if (mClockEnabled && mTimeIsAccurate && validClock(part)) {
                     drawClock(animation.clockFont, part.clockPosX, part.clockPosY);
                 }
@@ -1189,5 +1231,193 @@ status_t BootAnimation::TimeCheckThread::readyToRun() {
 
 // ---------------------------------------------------------------------------
 
+static void drawSolidRect(int x, int y, int w, int h, float r, float g, float b, float a = 1.0f) {
+    if (w <= 0 || h <= 0) return;
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(x, y, w, h);
+    glClearColor(r, g, b, a);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 }
-; // namespace android
+
+bool BootAnimation::updateMovie()
+{
+    Animation* animation = loadAnimation(mZipFileName);
+    if (animation == NULL) {
+        return android();
+    }
+
+    // Check if npot textures are supported
+    mUseNpotTextures = false;
+    String8 gl_extensions;
+    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    if (!exts) {
+        glGetError();
+    } else {
+        gl_extensions.setTo(exts);
+        if ((gl_extensions.find("GL_ARB_texture_non_power_of_two") != -1) ||
+            (gl_extensions.find("GL_OES_texture_npot") != -1)) {
+            mUseNpotTextures = true;
+        }
+    }
+
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glShadeModel(GL_FLAT);
+    glDisable(GL_DITHER);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_BLEND);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glEnable(GL_TEXTURE_2D);
+    glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    Font font;
+    memset(&font, 0, sizeof(font));
+    bool fontLoaded = (initFont(&font, CLOCK_FONT_ASSET) == NO_ERROR);
+
+    // Dynamic scaling to fit native screen resolution (720p, 1080p, 1440p)
+    float scale = 1.0f;
+    if (animation->width > 0 && animation->height > 0) {
+        float scaleX = (float)mWidth / (float)animation->width;
+        float scaleY = (float)mHeight / (float)animation->height;
+        scale = (scaleX < scaleY) ? scaleX : scaleY;
+    }
+    const int scaledW = (int)(animation->width * scale);
+    const int scaledH = (int)(animation->height * scale);
+    const int animationX = (mWidth - scaledW) / 2;
+    const int animationY = (mHeight - scaledH) / 2;
+
+    int fps = (animation->fps > 0) ? animation->fps : 30;
+    nsecs_t frameDuration = s2ns(1) / fps;
+
+    // Progress bar geometry (centered horizontally, lower third)
+    const int barWidth = (int)(mWidth * 0.72f);
+    const int barHeight = (mHeight > 1920) ? 18 : 12;
+    const int barX = (mWidth - barWidth) / 2;
+    const int barY = (int)(mHeight * 0.28f);
+
+    // Progression frames: 12 seconds progression + hold at 100% until system ready
+    const int progressFrames = fps * 12;
+    const int minHoldFrames = (int)(fps * 2.5f);
+    const int maxTotalFrames = progressFrames + fps * 35; // Safety ceiling
+
+    size_t partIndex = 0;
+    if (animation->parts.size() > 1) {
+        partIndex = 1;
+    }
+
+    for (int step = 0; step < maxTotalFrames; step++) {
+        nsecs_t frameStart = systemTime();
+
+        checkExit();
+        if (step >= progressFrames + minHoldFrames && exitPending()) {
+            break;
+        }
+
+        float progress = (float)step / (float)progressFrames;
+        if (progress > 1.0f) progress = 1.0f;
+        int pct = (int)(progress * 100.0f);
+
+        // 1. Render animated glowing logo frame
+        if (animation->parts.size() > 0) {
+            const Animation::Part& part(animation->parts[partIndex]);
+            size_t numFrames = part.frames.size();
+            if (numFrames > 0) {
+                const Animation::Frame& frame(part.frames[step % numFrames]);
+                if (frame.tid == 0) {
+                    glGenTextures(1, &frame.tid);
+                    glBindTexture(GL_TEXTURE_2D, frame.tid);
+                    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    int w, h;
+                    initTexture(frame.map, &w, &h);
+                } else {
+                    glBindTexture(GL_TEXTURE_2D, frame.tid);
+                }
+
+                const int frameW = (int)(frame.trimWidth * scale);
+                const int frameH = (int)(frame.trimHeight * scale);
+                const int xc = animationX + (int)(frame.trimX * scale);
+                const int yc = animationY + (int)(frame.trimY * scale);
+
+                Region clearReg(Rect(mWidth, mHeight));
+                clearReg.subtractSelf(Rect(xc, yc, xc + frameW, yc + frameH));
+                if (!clearReg.isEmpty()) {
+                    Region::const_iterator head(clearReg.begin());
+                    Region::const_iterator tail(clearReg.end());
+                    glEnable(GL_SCISSOR_TEST);
+                    while (head != tail) {
+                        const Rect& r2(*head++);
+                        glScissor(r2.left, mHeight - r2.bottom, r2.width(), r2.height());
+                        glClear(GL_COLOR_BUFFER_BIT);
+                    }
+                    glDisable(GL_SCISSOR_TEST);
+                }
+                glDrawTexiOES(xc, mHeight - (yc + frameH), 0, frameW, frameH);
+            }
+        }
+
+        // 2. Render Progress Bar
+        // Outer dark border
+        drawSolidRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, 0.22f, 0.25f, 0.28f, 1.0f);
+        // Track background
+        drawSolidRect(barX, barY, barWidth, barHeight, 0.08f, 0.08f, 0.10f, 1.0f);
+        // Cyan fill (#00E5FF)
+        int fillW = (int)(barWidth * progress);
+        if (fillW > 0) {
+            if (fillW > barWidth) fillW = barWidth;
+            drawSolidRect(barX, barY, fillW, barHeight, 0.0f, 0.898f, 1.0f, 1.0f);
+        }
+
+        // 3. Render Status Texts
+        if (fontLoaded) {
+            char pctBuf[32];
+            snprintf(pctBuf, sizeof(pctBuf), "%d%%", pct);
+
+            int tx1 = TEXT_CENTER_VALUE;
+            int ty1 = barY + 115;
+            int tx2 = TEXT_CENTER_VALUE;
+            int ty2 = barY + 55;
+            int tx3 = TEXT_CENTER_VALUE;
+            int ty3 = barY - 65;
+
+            if (progress < 1.0f) {
+                drawText("Installazione aggiornamento di sistema in corso...", font, true, &tx1, &ty1);
+                drawText("Non spegnere il dispositivo", font, false, &tx2, &ty2);
+                drawText(pctBuf, font, true, &tx3, &ty3);
+            } else {
+                drawText("Aggiornamento completato!", font, true, &tx1, &ty1);
+                drawText("Avvio del sistema in corso...", font, false, &tx2, &ty2);
+                drawText("100%", font, true, &tx3, &ty3);
+            }
+        }
+
+        eglSwapBuffers(mDisplay, mSurface);
+
+        nsecs_t now = systemTime();
+        nsecs_t delay = frameDuration - (now - frameStart);
+        if (delay > 0) {
+            usleep(ns2us(delay));
+        }
+    }
+
+    // Finished installation sequence! Clear flags.
+    unlink("/cache/kiro_updating");
+    property_set("persist.sys.kiro_updating", "0");
+
+    if (fontLoaded) {
+        glDeleteTextures(1, &font.texture.name);
+    }
+    releaseAnimation(animation);
+
+    // Allow surfaceflinger exit if signaled
+    checkExit();
+    return false;
+}
+
+} // namespace android
