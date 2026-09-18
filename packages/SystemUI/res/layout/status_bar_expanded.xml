@@ -53,6 +53,8 @@
             android:layout_width="@dimen/notification_panel_width"
             android:layout_height="match_parent"
             android:layout_gravity="@integer/notification_panel_layout_gravity"
+            android:layout_marginStart="@dimen/kiroos_notification_side_margin"
+            android:layout_marginEnd="@dimen/kiroos_notification_side_margin"
             android:layout_marginBottom="@dimen/close_handle_underlap" />
 
         <ViewStub

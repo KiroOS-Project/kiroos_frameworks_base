@@ -151,6 +151,11 @@
     <color name="qs_tile_tint_inactive">#B0B0B5</color>
     <color name="qs_tile_tint_active">#FFFFFFFF</color>
 
+    <!-- KiroOS: round quick settings tile backgrounds -->
+    <color name="qs_tile_bg_active">#FFFFFFFF</color>
+    <color name="qs_tile_bg_inactive">#FF181818</color>
+    <color name="qs_tile_bg_pressed">#40808080</color>
+
     <!-- Keyboard shortcuts colors -->
     <color name="ksh_application_group_color">#fff44336</color>
     <color name="ksh_keyword_color">#d9000000</color>

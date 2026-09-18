@@ -22,9 +22,11 @@ import android.animation.ValueAnimator;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Handler;
+import android.os.UserHandle;
 import android.util.Log;
 import android.view.animation.Interpolator;
 
+import com.android.internal.hardware.AmbientDisplayConfiguration;
 import com.android.systemui.Interpolators;
 import com.android.systemui.doze.DozeHost;
 import com.android.systemui.doze.DozeLog;
@@ -39,6 +41,7 @@ public class DozeScrimController {
     private final DozeParameters mDozeParameters;
     private final Handler mHandler = new Handler();
     private final ScrimController mScrimController;
+    private final AmbientDisplayConfiguration mAmbientConfig;
 
     private boolean mDozing;
     private DozeHost.PulseCallback mPulseCallback;
@@ -51,6 +54,7 @@ public class DozeScrimController {
     public DozeScrimController(ScrimController scrimController, Context context) {
         mScrimController = scrimController;
         mDozeParameters = new DozeParameters(context);
+        mAmbientConfig = new AmbientDisplayConfiguration(context);
     }
 
     public void setDozing(boolean dozing, boolean animate) {
@@ -253,6 +257,15 @@ public class DozeScrimController {
         public void run() {
             if (DEBUG) Log.d(TAG, "Pulse in finished, mDozing=" + mDozing);
             if (!mDozing) return;
+            if (mPulseReason == DozeLog.PULSE_REASON_ALWAYS_ON) {
+                // KiroOS: the always on display stays until the chosen time runs out
+                // (or until the screen is turned on, which ends dozing)
+                long timeout = mAmbientConfig.alwaysOnTimeoutMillis(UserHandle.USER_CURRENT);
+                if (timeout > 0) {
+                    mHandler.postDelayed(mPulseOut, timeout);
+                }
+                return;
+            }
             mHandler.postDelayed(mPulseOut, mDozeParameters.getPulseVisibleDuration());
         }
     };

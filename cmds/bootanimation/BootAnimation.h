@@ -33,11 +33,13 @@ namespace android {
 class Surface;
 class SurfaceComposerClient;
 class SurfaceControl;
+class FrameDecoder;
 
 // ---------------------------------------------------------------------------
 
 class BootAnimation : public Thread, public IBinder::DeathRecipient
 {
+    friend class FrameDecoder;
 public:
                 BootAnimation();
     virtual     ~BootAnimation();
@@ -120,14 +122,20 @@ private:
         String8 fileName;
         ZipFileRO* zip;
         Font clockFont;
+        // KiroOS: static artwork drawn over every frame (overlay.png + overlay.txt)
+        FileMap* overlayMap = nullptr;
+        int overlayX = 0;
+        int overlayY = 0;
+        int overlayStart = 0;  // first frame (counted across parts) where it appears
+        int overlayFade = 0;   // fade-in length in frames
     };
 
     status_t initTexture(Texture* texture, AssetManager& asset, const char* name);
-    status_t initTexture(FileMap* map, int* width, int* height);
+    status_t initTexture(FileMap* map, int* width, int* height, bool releaseMap = true);
+    status_t uploadBitmap(SkBitmap& bitmap, int* width, int* height);
     status_t initFont(Font* font, const char* fallback);
     bool android();
     bool movie();
-    bool updateMovie();
     void drawText(const char* str, const Font& font, bool bold, int* x, int* y);
     void drawClock(const Font& font, const int xPos, const int yPos);
     bool validClock(const Animation::Part& part);
@@ -146,6 +154,9 @@ private:
     int         mWidth;
     int         mHeight;
     bool        mUseNpotTextures = false;
+    bool        mReuseFrameTexture = false;
+    int         mFrameTexW = 0;
+    int         mFrameTexH = 0;
     EGLDisplay  mDisplay;
     EGLDisplay  mContext;
     EGLDisplay  mSurface;

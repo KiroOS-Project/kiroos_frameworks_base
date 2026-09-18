@@ -5365,6 +5365,8 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
             vibrateForCameraGesture();
         }
         if (!mStatusBarKeyguardViewManager.isShowing()) {
+            KeyguardBottomAreaView.preferSystemCamera(mContext,
+                    KeyguardBottomAreaView.INSECURE_CAMERA_INTENT);
             startActivity(KeyguardBottomAreaView.INSECURE_CAMERA_INTENT,
                     true /* dismissShade */);
         } else {
@@ -5529,23 +5531,51 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
         }
 
         private void handlePulseWhileDozing(@NonNull PulseCallback callback, int reason) {
+            final boolean alwaysOn = reason == DozeLog.PULSE_REASON_ALWAYS_ON;
             mDozeScrimController.pulse(new PulseCallback() {
 
                 @Override
                 public void onPulseStarted() {
                     callback.onPulseStarted();
                     mStackScroller.setPulsing(true);
+                    if (alwaysOn) {
+                        mHandler.post(mAlwaysOnShift);
+                    }
                 }
 
                 @Override
                 public void onPulseFinished() {
                     callback.onPulseFinished();
                     mStackScroller.setPulsing(false);
+                    if (alwaysOn) {
+                        stopAlwaysOnShift();
+                    }
                 }
             }, reason);
         }
 
+        // KiroOS: the always on display can stay on for a long time on an AMOLED panel, so
+        // its content moves by a few pixels every minute to avoid burn-in.
+        private final Runnable mAlwaysOnShift = new Runnable() {
+            @Override
+            public void run() {
+                final int range = mContext.getResources().getDimensionPixelSize(
+                        R.dimen.kiroos_aod_burn_in_offset);
+                final java.util.Random random = new java.util.Random();
+                mNotificationPanel.setTranslationX(random.nextInt(2 * range + 1) - range);
+                mNotificationPanel.setTranslationY(random.nextInt(2 * range + 1) - range);
+                mHandler.postDelayed(this, 60 * 1000);
+            }
+        };
+
+        private void stopAlwaysOnShift() {
+            mHandler.removeCallbacks(mAlwaysOnShift);
+            mNotificationPanel.setTranslationX(0);
+            mNotificationPanel.setTranslationY(0);
+        }
+
         private void handleStopDozing() {
+            stopAlwaysOnShift();
             if (mDozingRequested) {
                 mDozingRequested = false;
                 DozeLog.traceDozing(mContext, mDozing);

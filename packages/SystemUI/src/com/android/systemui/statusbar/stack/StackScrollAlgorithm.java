@@ -69,7 +69,7 @@ public class StackScrollAlgorithm {
 
     private void initConstants(Context context) {
         mPaddingBetweenElements = Math.max(1, context.getResources()
-                .getDimensionPixelSize(R.dimen.notification_divider_height));
+                .getDimensionPixelSize(R.dimen.kiroos_notification_card_gap));
         mIncreasedPaddingBetweenElements = context.getResources()
                 .getDimensionPixelSize(R.dimen.notification_divider_height_increased);
         mCollapsedSize = context.getResources()

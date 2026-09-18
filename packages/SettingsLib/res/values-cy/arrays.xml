@@ -93,6 +93,7 @@
     <string-array name="window_animation_scale_entries">
         <item>Animeiddiad i ffwrdd</item>
         <item>Graddfa animeiddiad .5x</item>
+        <item>Graddfa animeiddiad .75x</item>
         <item>Graddfa animeiddiad 1x</item>
         <item>Graddfa animeiddiad 1.5x</item>
         <item>Graddfa animeiddiad 2x</item>
@@ -102,6 +103,7 @@
     <string-array name="transition_animation_scale_entries">
         <item>Animeiddiad i ffwrdd</item>
         <item>Graddfa animeiddiad .5x</item>
+        <item>Graddfa animeiddiad .75x</item>
         <item>Graddfa animeiddiad 1x</item>
         <item>Graddfa animeiddiad 1.5x</item>
         <item>Graddfa animeiddiad 2x</item>
@@ -111,6 +113,7 @@
     <string-array name="animator_duration_scale_entries">
         <item>Animeiddiad i ffwrdd</item>
         <item>Graddfa animeiddiad .5x</item>
+        <item>Graddfa animeiddiad .75x</item>
         <item>Graddfa animeiddiad 1x</item>
         <item>Graddfa animeiddiad 1.5x</item>
         <item>Graddfa animeiddiad 2x</item>

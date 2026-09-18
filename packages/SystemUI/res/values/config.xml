@@ -246,6 +246,9 @@
     <!-- Doze: pulse parameter - once faded in, how long does it stay visible? -->
     <integer name="doze_pulse_duration_visible">6000</integer>
 
+    <!-- KiroOS: screen brightness (0-255) of the always on display -->
+    <integer name="kiroos_aod_brightness">20</integer>
+
     <!-- Doze: pulse parameter - how long does it take to fade out? -->
     <integer name="doze_pulse_duration_out">600</integer>
 

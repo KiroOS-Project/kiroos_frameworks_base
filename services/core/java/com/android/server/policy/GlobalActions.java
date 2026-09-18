@@ -1525,7 +1525,30 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
             mWindowTouchSlop = ViewConfiguration.get(context).getScaledWindowTouchSlop();
             params.apply(mAlert);
             if (getWindow() != null) {
-                getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF000000));
+                // KiroOS: same card as the restart / power off confirmation (ShutdownThread)
+                getWindow().setBackgroundDrawable(createAmoledCardDrawable(mContext));
+            }
+        }
+
+        private static android.graphics.drawable.InsetDrawable createAmoledCardDrawable(
+                Context context) {
+            android.graphics.drawable.GradientDrawable gd =
+                    new android.graphics.drawable.GradientDrawable();
+            gd.setColor(0xFF181818);
+            float density = context.getResources().getDisplayMetrics().density;
+            int cornerRadius = (int) (16 * density + 0.5f);
+            int inset = (int) (16 * density + 0.5f);
+            gd.setCornerRadius(cornerRadius);
+            return new android.graphics.drawable.InsetDrawable(gd, inset, inset, inset, inset);
+        }
+
+        @Override
+        public void show() {
+            super.show();
+            // keep the pressed-state ripple of the items inside the rounded card
+            View decor = getWindow() != null ? getWindow().getDecorView() : null;
+            if (decor != null) {
+                decor.setClipToOutline(true);
             }
         }
 

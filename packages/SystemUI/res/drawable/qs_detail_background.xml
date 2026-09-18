@@ -13,7 +13,22 @@ Copyright (C) 2014 The Android Open Source Project
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
+<!-- KiroOS: same black rounded-bottom surface as the control center -->
 <transition xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/qs_detail_transition" />
-    <item android:drawable="?android:attr/colorPrimary" />
+    <item>
+        <shape>
+            <solid android:color="@color/qs_detail_transition" />
+            <corners
+                android:bottomLeftRadius="@dimen/kiroos_panel_corner_radius"
+                android:bottomRightRadius="@dimen/kiroos_panel_corner_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <solid android:color="#FF000000" />
+            <corners
+                android:bottomLeftRadius="@dimen/kiroos_panel_corner_radius"
+                android:bottomRightRadius="@dimen/kiroos_panel_corner_radius" />
+        </shape>
+    </item>
 </transition>

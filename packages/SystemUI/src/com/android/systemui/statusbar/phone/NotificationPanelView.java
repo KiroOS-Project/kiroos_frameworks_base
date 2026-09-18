@@ -474,7 +474,7 @@ public class NotificationPanelView extends PanelView implements
         float minPadding = mClockPositionAlgorithm.getMinStackScrollerPadding(getHeight(),
                 mKeyguardStatusView.getHeight());
         int notificationPadding = Math.max(1, getResources().getDimensionPixelSize(
-                R.dimen.notification_divider_height));
+                R.dimen.kiroos_notification_card_gap));
         final int overflowheight = getResources().getDimensionPixelSize(
                 R.dimen.notification_summary_height);
         float bottomStackSize = mNotificationStackScroller.getKeyguardBottomStackSize();

@@ -109,6 +109,9 @@ public final class SignalTileView extends QSIconView {
     public void setIcon(QSTile.State state) {
         final SignalState s = (SignalState) state;
         setIcon(mSignal, s);
+        applyIconFilter(mOverlay);
+        applyIconFilter(mIn);
+        applyIconFilter(mOut);
         if (s.overlayIconId > 0) {
             mOverlay.setVisibility(VISIBLE);
             mOverlay.setImageResource(s.overlayIconId);

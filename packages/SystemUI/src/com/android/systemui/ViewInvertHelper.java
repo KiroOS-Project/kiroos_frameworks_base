@@ -103,14 +103,10 @@ public class ViewInvertHelper {
     }
 
     private void updateInvertPaint(float intensity) {
-        float components = 1 - 2 * intensity;
-        final float[] invert = {
-                components, 0f,         0f,         0f, 255f * intensity,
-                0f,         components, 0f,         0f, 255f * intensity,
-                0f,         0f,         components, 0f, 255f * intensity,
-                0f,         0f,         0f,         1f, 0f
-        };
-        mMatrix.set(invert);
+        // KiroOS: notifications are already light text on a dark card, so the ambient
+        // ("dark") state must not invert them (that turned white text black on the black
+        // doze screen). Only fade to grayscale, like the rest of the ambient display.
+        mMatrix.reset();
         mGrayscaleMatrix.setSaturation(1 - intensity);
         mMatrix.preConcat(mGrayscaleMatrix);
         mDarkPaint.setColorFilter(new ColorMatrixColorFilter(mMatrix));

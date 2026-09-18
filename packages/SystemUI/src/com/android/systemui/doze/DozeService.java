@@ -46,6 +46,7 @@ import android.view.Display;
 import com.android.internal.hardware.AmbientDisplayConfiguration;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.MetricsProto.MetricsEvent;
+import com.android.systemui.R;
 import com.android.systemui.SystemUIApplication;
 import com.android.systemui.statusbar.phone.DozeParameters;
 
@@ -193,6 +194,11 @@ public class DozeService extends DreamService {
             if (mDreaming) {
                 startDozing();
 
+                // KiroOS: always on display, shown as a pulse that stays visible
+                if (mConfig.alwaysOnEnabled(UserHandle.USER_CURRENT)) {
+                    requestPulse(DozeLog.PULSE_REASON_ALWAYS_ON);
+                }
+
                 // From this point until onDreamingStopped we will need to hold a
                 // wakelock whenever we are doing work.  Note that we never call
                 // stopDozing because can we just keep dozing until the bitter end.
@@ -273,6 +279,11 @@ public class DozeService extends DreamService {
             @Override
             public void onPulseStarted() {
                 if (mPulsing && mDreaming) {
+                    // KiroOS: the always on display stays on for long, keep it dim;
+                    // notification pulses keep the normal brightness.
+                    setDozeScreenBrightness(reason == DozeLog.PULSE_REASON_ALWAYS_ON
+                            ? getResources().getInteger(R.integer.kiroos_aod_brightness)
+                            : PowerManager.BRIGHTNESS_DEFAULT);
                     turnDisplayOn();
                 }
             }

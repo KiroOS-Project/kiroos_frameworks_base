@@ -801,7 +801,8 @@ public class DeviceIdleController extends SystemService
 
                 LIGHT_IDLE_AFTER_INACTIVE_TIMEOUT = mParser.getLong(
                         KEY_LIGHT_IDLE_AFTER_INACTIVE_TIMEOUT,
-                        !COMPRESS_TIME ? 5 * 60 * 1000L : 15 * 1000L);
+                        // KiroOS: light doze after 2 minutes with the screen off (was 5)
+                        !COMPRESS_TIME ? 2 * 60 * 1000L : 15 * 1000L);
                 LIGHT_PRE_IDLE_TIMEOUT = mParser.getLong(KEY_LIGHT_PRE_IDLE_TIMEOUT,
                         !COMPRESS_TIME ? 10 * 60 * 1000L : 30 * 1000L);
                 LIGHT_IDLE_TIMEOUT = mParser.getLong(KEY_LIGHT_IDLE_TIMEOUT,
@@ -822,7 +823,8 @@ public class DeviceIdleController extends SystemService
                 MIN_DEEP_MAINTENANCE_TIME = mParser.getLong(
                         KEY_MIN_DEEP_MAINTENANCE_TIME,
                         !COMPRESS_TIME ? 30 * 1000L : 5 * 1000L);
-                long inactiveTimeoutDefault = (mHasWatch ? 15 : 30) * 60 * 1000L;
+                // KiroOS: deep doze sooner, 10 + 10 minutes instead of 30 + 30
+                long inactiveTimeoutDefault = 10 * 60 * 1000L;
                 INACTIVE_TIMEOUT = mParser.getLong(KEY_INACTIVE_TIMEOUT,
                         !COMPRESS_TIME ? inactiveTimeoutDefault : (inactiveTimeoutDefault / 10));
                 SENSING_TIMEOUT = mParser.getLong(KEY_SENSING_TIMEOUT,
@@ -832,7 +834,7 @@ public class DeviceIdleController extends SystemService
                 LOCATION_ACCURACY = mParser.getFloat(KEY_LOCATION_ACCURACY, 20);
                 MOTION_INACTIVE_TIMEOUT = mParser.getLong(KEY_MOTION_INACTIVE_TIMEOUT,
                         !COMPRESS_TIME ? 10 * 60 * 1000L : 60 * 1000L);
-                long idleAfterInactiveTimeout = (mHasWatch ? 15 : 30) * 60 * 1000L;
+                long idleAfterInactiveTimeout = 10 * 60 * 1000L;
                 IDLE_AFTER_INACTIVE_TIMEOUT = mParser.getLong(KEY_IDLE_AFTER_INACTIVE_TIMEOUT,
                         !COMPRESS_TIME ? idleAfterInactiveTimeout
                                        : (idleAfterInactiveTimeout / 10));

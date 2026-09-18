@@ -287,6 +287,7 @@ public class NotificationStackScrollLayout extends ViewGroup
     private ActivatableNotificationView mFirstVisibleBackgroundChild = null;
     private ActivatableNotificationView mLastVisibleBackgroundChild = null;
     private int mBgColor;
+    private int mSideMargin;
     private float mDimAmount;
     private ValueAnimator mDimAnimator;
     private ArrayList<ExpandableView> mTmpSortedChildren = new ArrayList<>();
@@ -371,6 +372,8 @@ public class NotificationStackScrollLayout extends ViewGroup
             int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
         mBgColor = context.getColor(R.color.notification_shade_background_color);
+        mSideMargin = getResources().getDimensionPixelSize(
+                R.dimen.kiroos_notification_side_margin);
         int minHeight = getResources().getDimensionPixelSize(R.dimen.notification_min_height);
         int maxHeight = getResources().getDimensionPixelSize(R.dimen.notification_max_height);
         mExpandHelper = new ExpandHelper(getContext(), this,
@@ -412,8 +415,9 @@ public class NotificationStackScrollLayout extends ViewGroup
     @Override
     protected void onDraw(Canvas canvas) {
         if (mCurrentBounds.top < mCurrentBounds.bottom) {
-            canvas.drawRect(0, mCurrentBounds.top, getWidth(), mCurrentBounds.bottom,
-                    mBackgroundPaint);
+            // KiroOS: the cards have side margins, cover them too so the shade stays black
+            canvas.drawRect(-mSideMargin, mCurrentBounds.top, getWidth() + mSideMargin,
+                    mCurrentBounds.bottom, mBackgroundPaint);
         }
         if (DEBUG) {
             int y = mTopPadding;
@@ -463,7 +467,7 @@ public class NotificationStackScrollLayout extends ViewGroup
                 .getDimensionPixelSize(R.dimen.bottom_stack_peek_amount);
         mStackScrollAlgorithm.initView(context);
         mPaddingBetweenElements = Math.max(1, context.getResources()
-                .getDimensionPixelSize(R.dimen.notification_divider_height));
+                .getDimensionPixelSize(R.dimen.kiroos_notification_card_gap));
         mIncreasedPaddingBetweenElements = context.getResources()
                 .getDimensionPixelSize(R.dimen.notification_divider_height_increased);
         mBottomStackSlowDownHeight = mStackScrollAlgorithm.getBottomStackSlowDownLength();
@@ -2022,8 +2026,8 @@ public class NotificationStackScrollLayout extends ViewGroup
      * Update the background bounds to the new desired bounds
      */
     private void updateBackgroundBounds() {
-        mBackgroundBounds.left = (int) getX();
-        mBackgroundBounds.right = (int) (getX() + getWidth());
+        mBackgroundBounds.left = (int) getX() - mSideMargin;
+        mBackgroundBounds.right = (int) (getX() + getWidth()) + mSideMargin;
         if (!mIsExpanded) {
             mBackgroundBounds.top = 0;
             mBackgroundBounds.bottom = 0;

@@ -30,6 +30,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
@@ -77,6 +78,7 @@ import com.android.systemui.statusbar.policy.AccessibilityController;
 import com.android.systemui.statusbar.policy.FlashlightController;
 import com.android.systemui.statusbar.policy.PreviewInflater;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -342,7 +344,38 @@ public class KeyguardBottomAreaView extends FrameLayout implements View.OnClickL
         boolean canSkipBouncer = updateMonitor.getUserCanSkipBouncer(
                 KeyguardUpdateMonitor.getCurrentUser());
         boolean secure = mLockPatternUtils.isSecure(KeyguardUpdateMonitor.getCurrentUser());
-        return (secure && !canSkipBouncer) ? SECURE_CAMERA_INTENT : INSECURE_CAMERA_INTENT;
+        Intent intent = (secure && !canSkipBouncer) ? SECURE_CAMERA_INTENT : INSECURE_CAMERA_INTENT;
+        preferSystemCamera(mContext, intent);
+        return intent;
+    }
+
+    /**
+     * KiroOS: with a second camera app installed and no default chosen, the lockscreen
+     * shortcut would open the app chooser. Open the built-in camera directly instead;
+     * an app the user picked as default is still respected.
+     */
+    public static void preferSystemCamera(Context context, Intent intent) {
+        intent.setPackage(null);
+        final int userId = KeyguardUpdateMonitor.getCurrentUser();
+        final PackageManager pm = context.getPackageManager();
+        final ResolveInfo resolved = pm.resolveActivityAsUser(intent,
+                PackageManager.MATCH_DEFAULT_ONLY, userId);
+        final List<ResolveInfo> apps = pm.queryIntentActivitiesAsUser(intent,
+                PackageManager.MATCH_DEFAULT_ONLY, userId);
+        if (resolved == null || apps == null || apps.size() < 2) {
+            return;
+        }
+        for (ResolveInfo app : apps) {
+            if (app.activityInfo.packageName.equals(resolved.activityInfo.packageName)) {
+                return; // a default camera app is already set
+            }
+        }
+        for (ResolveInfo app : apps) {
+            if ((app.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
+                intent.setPackage(app.activityInfo.packageName);
+                return;
+            }
+        }
     }
 
     /**

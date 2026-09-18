@@ -44,6 +44,9 @@
         android:paddingTop="16dp"
         android:paddingBottom="16dp"
         android:thumb="@drawable/ic_brightness_thumb"
+        android:progressDrawable="@drawable/kiroos_brightness_progress"
+        android:minHeight="8dp"
+        android:maxHeight="8dp"
         android:splitTrack="false"
         />
     <TextView

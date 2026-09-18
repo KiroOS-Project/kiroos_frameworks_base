@@ -24,6 +24,12 @@ import android.text.TextUtils;
 
 public class AmbientDisplayConfiguration {
 
+    /** KiroOS: always on display (Settings.Secure, 1 = on). */
+    public static final String ALWAYS_ON_ENABLED = "kiroos_aod_enabled";
+    /** KiroOS: minutes the always on display stays visible after the screen turns off, 0 = always. */
+    public static final String ALWAYS_ON_TIMEOUT = "kiroos_aod_timeout";
+    public static final int ALWAYS_ON_DEFAULT_TIMEOUT = 10;
+
     private final Context mContext;
 
     public AmbientDisplayConfiguration(Context context) {
@@ -33,7 +39,19 @@ public class AmbientDisplayConfiguration {
     public boolean enabled(int user) {
         return pulseOnNotificationEnabled(user)
                 || pulseOnPickupEnabled(user)
-                || pulseOnDoubleTapEnabled(user);
+                || pulseOnDoubleTapEnabled(user)
+                || alwaysOnEnabled(user);
+    }
+
+    public boolean alwaysOnEnabled(int user) {
+        return boolSetting(ALWAYS_ON_ENABLED, user) && ambientDisplayAvailable();
+    }
+
+    /** Milliseconds the always on display stays on, 0 = until the screen is turned on. */
+    public long alwaysOnTimeoutMillis(int user) {
+        int minutes = Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                ALWAYS_ON_TIMEOUT, ALWAYS_ON_DEFAULT_TIMEOUT, user);
+        return minutes <= 0 ? 0 : minutes * 60000L;
     }
     
     public boolean available() {

@@ -85,7 +85,7 @@ public class QSTileBaseView extends LinearLayout {
         // center the touch feedback on the center of the icon, and dial it down a bit
         final int cx = width / 2;
         final int cy = height / 2;
-        final int rad = (int)(mIcon.getHeight() * .85f);
+        final int rad = mIcon.getBackgroundRadius();
         mRipple.setHotspotBounds(cx - rad, cy - rad, cx + rad, cy + rad);
     }
 
@@ -104,6 +104,13 @@ public class QSTileBaseView extends LinearLayout {
         if (mRipple != null) {
             updateRippleSize(w, h);
         }
+    }
+
+    @Override
+    protected void dispatchSetPressed(boolean pressed) {
+        super.dispatchSetPressed(pressed);
+        // The round icon background covers the ripple, so show the press on it
+        mIcon.setBackgroundPressed(pressed);
     }
 
     @Override

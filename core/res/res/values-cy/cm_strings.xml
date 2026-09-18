@@ -21,7 +21,7 @@
     <string name="global_action_reboot">Ailgychwyn</string>
     <string name="global_action_current_user">Cyfredol</string>
     <string name="global_actions_screenshot_status">Gwasgiad hir am sgrinlun rhannol</string>
-    <string name="reboot_reboot">Ailgychwyn LineageOS</string>
+    <string name="reboot_reboot">Ailgychwyn KiroOS</string>
     <string name="reboot_recovery">Adfer</string>
     <string name="reboot_bootloader">Cychwynnydd</string>
     <string name="reboot_download">Modd llwytho</string>

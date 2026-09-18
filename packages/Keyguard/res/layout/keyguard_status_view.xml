@@ -19,7 +19,7 @@
         android:orientation="vertical"
         android:layout_marginTop="28dp">
 
-        <!-- Modern Balanced Lockscreen Digital Clock -->
+        <!-- KiroOS lockscreen clock: large light digits, soft shadow for bright wallpapers -->
         <TextClock
             android:id="@+id/clock_view"
             android:layout_width="wrap_content"
@@ -27,9 +27,11 @@
             android:layout_gravity="center_horizontal"
             android:textColor="#FFFFFFFF"
             android:singleLine="true"
-            android:fontFamily="sans-serif-medium"
-            android:textSize="72sp"
-            android:letterSpacing="-0.02"
+            android:fontFamily="sans-serif-light"
+            android:textSize="@dimen/widget_big_font_size"
+            android:letterSpacing="-0.03"
+            android:shadowColor="#66000000"
+            android:shadowRadius="12"
             android:includeFontPadding="false"
             android:format12Hour="@string/keyguard_widget_12_hours_format"
             android:format24Hour="@string/keyguard_widget_24_hours_format"

@@ -170,7 +170,7 @@
     <!-- The size of the gesture span needed to activate the "pull" notification expansion -->
     <dimen name="pull_span_min">25dp</dimen>
 
-    <dimen name="qs_tile_height">88dp</dimen>
+    <dimen name="qs_tile_height">96dp</dimen>
     <dimen name="qs_tile_margin">16dp</dimen>
     <dimen name="qs_tile_margin_top">16dp</dimen>
     <dimen name="qs_quick_tile_size">48dp</dimen>
@@ -187,7 +187,9 @@
     <dimen name="qs_dual_tile_padding_horizontal">6dp</dimen>
     <dimen name="qs_tile_padding_top">14dp</dimen>
     <dimen name="qs_tile_padding_top_large_text">4dp</dimen>
-    <dimen name="qs_tile_padding_below_icon">12dp</dimen>
+    <dimen name="qs_tile_padding_below_icon">20dp</dimen>
+    <!-- KiroOS: space between the tile icon and its round background -->
+    <dimen name="qs_tile_icon_bg_inset">12dp</dimen>
     <dimen name="qs_tile_padding_bottom">16dp</dimen>
     <dimen name="qs_tile_spacing">4dp</dimen>
     <dimen name="qs_panel_padding_bottom">8dp</dimen>
@@ -256,11 +258,20 @@
     <!-- The height of the divider between the individual notifications. -->
     <dimen name="notification_divider_height">0.5dp</dimen>
 
+    <!-- KiroOS: gap between notification cards and their side margin -->
+    <dimen name="kiroos_notification_card_gap">8dp</dimen>
+    <dimen name="kiroos_notification_side_margin">8dp</dimen>
+    <dimen name="kiroos_notification_corner_radius">18dp</dimen>
+    <dimen name="kiroos_panel_corner_radius">24dp</dimen>
+    <dimen name="kiroos_keyguard_affordance_margin">24dp</dimen>
+    <!-- KiroOS: max movement of the always on display content, against burn-in -->
+    <dimen name="kiroos_aod_burn_in_offset">8dp</dimen>
+
     <!-- The height of a notification header -->
     <dimen name="notification_header_height">53dp</dimen>
 
     <!-- The height of the divider between the individual notifications when the notification wants it to be increased. This is currently the case for notification groups -->
-    <dimen name="notification_divider_height_increased">6dp</dimen>
+    <dimen name="notification_divider_height_increased">12dp</dimen>
 
     <!-- The minimum amount of top overscroll to go to the quick settings. -->
     <dimen name="min_top_overscroll_to_qs">36dp</dimen>
@@ -441,7 +452,7 @@
     <dimen name="keyguard_affordance_icon_height">24dp</dimen>
     <dimen name="keyguard_affordance_icon_width">24dp</dimen>
 
-    <dimen name="keyguard_indication_margin_bottom">65dp</dimen>
+    <dimen name="keyguard_indication_margin_bottom">96dp</dimen>
 
     <!-- The text size for battery level -->
     <dimen name="battery_level_text_size">12sp</dimen>

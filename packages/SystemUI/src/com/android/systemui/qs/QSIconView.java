@@ -18,6 +18,13 @@ package com.android.systemui.qs;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.view.View;
@@ -35,15 +42,75 @@ public class QSIconView extends ViewGroup {
     protected final int mTilePaddingBelowIconPx;
     private boolean mAnimationEnabled = true;
 
+    // KiroOS: round tile background behind the icon (white when on, #181818 when off)
+    private final Paint mBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final int mBgRadiusPx;
+    private final int mBgColorActive;
+    private final int mBgColorInactive;
+    private final int mBgColorPressed;
+    private boolean mActive;
+    private boolean mBgPressed;
+    protected ColorFilter mIconFilter;
+    private static final ColorFilter ACTIVE_FILTER =
+            new PorterDuffColorFilter(0xFF000000, PorterDuff.Mode.SRC_IN);
+    private static final ColorFilter INACTIVE_FILTER;
+    static {
+        // #B0B0B5, with the dimmed "off" icons brought back to a readable alpha
+        ColorMatrix m = new ColorMatrix(new float[] {
+                0, 0, 0, 0, 0xB0,
+                0, 0, 0, 0, 0xB0,
+                0, 0, 0, 0, 0xB5,
+                0, 0, 0, 2.5f, 0 });
+        INACTIVE_FILTER = new ColorMatrixColorFilter(m);
+    }
+
     public QSIconView(Context context) {
         super(context);
 
         final Resources res = context.getResources();
         mIconSizePx = res.getDimensionPixelSize(R.dimen.qs_tile_icon_size);
         mTilePaddingBelowIconPx =  res.getDimensionPixelSize(R.dimen.qs_tile_padding_below_icon);
+        mBgRadiusPx = mIconSizePx / 2
+                + res.getDimensionPixelSize(R.dimen.qs_tile_icon_bg_inset);
+        mBgColorActive = context.getColor(R.color.qs_tile_bg_active);
+        mBgColorInactive = context.getColor(R.color.qs_tile_bg_inactive);
+        mBgColorPressed = context.getColor(R.color.qs_tile_bg_pressed);
+        setWillNotDraw(false);
 
         mIcon = createIcon();
         addView(mIcon);
+    }
+
+    public int getBackgroundRadius() {
+        return mBgRadiusPx;
+    }
+
+    public void setBackgroundPressed(boolean pressed) {
+        if (mBgPressed != pressed) {
+            mBgPressed = pressed;
+            invalidate();
+        }
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        final float cx = mIcon.getLeft() + mIcon.getWidth() / 2f;
+        final float cy = mIcon.getTop() + mIconSizePx / 2f;
+        mBgPaint.setColor(mActive ? mBgColorActive : mBgColorInactive);
+        canvas.drawCircle(cx, cy, mBgRadiusPx, mBgPaint);
+        if (mBgPressed) {
+            mBgPaint.setColor(mBgColorPressed);
+            canvas.drawCircle(cx, cy, mBgRadiusPx, mBgPaint);
+        }
+    }
+
+    /** Applies the on/off icon tint to an extra icon of this tile (signal overlays). */
+    protected void applyIconFilter(ImageView iv) {
+        if (mIconFilter != null) {
+            iv.setColorFilter(mIconFilter);
+        } else {
+            iv.clearColorFilter();
+        }
     }
 
     public void disableAnimation() {
@@ -95,10 +162,23 @@ public class QSIconView extends ViewGroup {
                 }
             }
         }
+        final boolean active;
         if (state.disabledByPolicy) {
-            iv.setColorFilter(getContext().getColor(R.color.qs_tile_disabled_color));
+            active = false;
+            mIconFilter = new PorterDuffColorFilter(
+                    getContext().getColor(R.color.qs_tile_disabled_color), PorterDuff.Mode.SRC_ATOP);
+        } else if (state instanceof QSTile.BooleanState) {
+            active = ((QSTile.BooleanState) state).value;
+            mIconFilter = active ? ACTIVE_FILTER : INACTIVE_FILTER;
         } else {
-            iv.clearColorFilter();
+            // Tiles without an on/off state (battery, profiles...) keep their own colors
+            active = false;
+            mIconFilter = null;
+        }
+        applyIconFilter(iv);
+        if (mActive != active) {
+            mActive = active;
+            invalidate();
         }
     }
 

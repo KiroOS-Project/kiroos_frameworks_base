@@ -15,11 +15,13 @@
   ~ limitations under the License
   -->
 
+<!-- KiroOS: rounded notification card -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
         android:color="@color/notification_ripple_untinted_color">
     <item>
         <shape>
             <solid android:color="@color/notification_material_background_color" />
+            <corners android:radius="@dimen/kiroos_notification_corner_radius" />
         </shape>
     </item>
 </ripple>

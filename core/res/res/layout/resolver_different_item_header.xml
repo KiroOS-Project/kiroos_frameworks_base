@@ -29,6 +29,6 @@
     android:paddingEnd="16dp"
     android:paddingTop="8dp"
     android:paddingBottom="8dp"
-    android:background="@color/white"
+    android:background="#FF181818"
     android:elevation="8dp"
     />

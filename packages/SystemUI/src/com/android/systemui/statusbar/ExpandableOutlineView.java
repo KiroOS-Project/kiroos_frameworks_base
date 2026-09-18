@@ -32,18 +32,21 @@ public abstract class ExpandableOutlineView extends ExpandableView {
     private final Rect mOutlineRect = new Rect();
     private boolean mCustomOutline;
     private float mOutlineAlpha = -1f;
+    // KiroOS: rounded notification cards
+    private final float mCornerRadius;
 
     ViewOutlineProvider mProvider = new ViewOutlineProvider() {
         @Override
         public void getOutline(View view, Outline outline) {
             int translation = (int) getTranslation();
             if (!mCustomOutline) {
-                outline.setRect(translation,
+                outline.setRoundRect(translation,
                         mClipTopAmount,
                         getWidth() + translation,
-                        Math.max(getActualHeight(), mClipTopAmount));
+                        Math.max(getActualHeight(), mClipTopAmount),
+                        mCornerRadius);
             } else {
-                outline.setRect(mOutlineRect);
+                outline.setRoundRect(mOutlineRect, mCornerRadius);
             }
             outline.setAlpha(mOutlineAlpha);
         }
@@ -51,6 +54,8 @@ public abstract class ExpandableOutlineView extends ExpandableView {
 
     public ExpandableOutlineView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        mCornerRadius = context.getResources().getDimensionPixelSize(
+                com.android.systemui.R.dimen.kiroos_notification_corner_radius);
         setOutlineProvider(mProvider);
     }
 

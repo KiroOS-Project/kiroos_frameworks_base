@@ -2085,8 +2085,12 @@ public class WindowManagerService extends IWindowManager.Stub
             boolean openInputChannels = (outInputChannel != null
                 && (attrs.inputFeatures & INPUT_FEATURE_NO_INPUT_CHANNEL) == 0);
             if (callingUid != Process.SYSTEM_UID) {
-                Slog.e(TAG_WM,
-                    "App trying to use insecure INPUT_FEATURE_NO_INPUT_CHANNEL flag. Ignoring");
+                // KiroOS: only complain when the flag is really requested (was logged for
+                // every window added by an app); the channel is still always opened.
+                if ((attrs.inputFeatures & INPUT_FEATURE_NO_INPUT_CHANNEL) != 0) {
+                    Slog.e(TAG_WM,
+                        "App trying to use insecure INPUT_FEATURE_NO_INPUT_CHANNEL flag. Ignoring");
+                }
                 openInputChannels = true;
             }
             if  (openInputChannels) {

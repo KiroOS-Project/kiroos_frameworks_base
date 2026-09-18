@@ -60,7 +60,128 @@
 #include "BootAnimation.h"
 #include "audioplay.h"
 
+#include <chrono>
+#include <condition_variable>
+#include <map>
+#include <mutex>
+#include <set>
+#include <thread>
+#include <vector>
+
 namespace android {
+
+// ---------------------------------------------------------------------------
+// KiroOS: frames are decoded ahead of time on worker threads so that high
+// resolution animations can play at 60 fps (decoding a 1440p PNG takes longer
+// than a frame). The GL thread only uploads the ready bitmap.
+
+static bool decodeFrameMap(FileMap* map, SkBitmap* bitmap) {
+    SkMemoryStream stream(map->getDataPtr(), map->getDataLength());
+    SkImageDecoder* codec = SkImageDecoder::Factory(&stream);
+    if (codec == NULL) {
+        return false;
+    }
+    codec->setDitherImage(false);
+    bool ok = codec->decode(&stream, bitmap, kN32_SkColorType,
+            SkImageDecoder::kDecodePixels_Mode) != SkImageDecoder::kFailure;
+    delete codec;
+    return ok;
+}
+
+class FrameDecoder {
+public:
+    FrameDecoder(const BootAnimation::Animation::Part& part, bool loop, int workers)
+        : mPart(part), mLoop(loop), mCount(part.frames.size()) {
+        for (int i = 0; i < workers && mCount > 0; i++) {
+            mThreads.push_back(std::thread(&FrameDecoder::workerLoop, this));
+        }
+    }
+
+    ~FrameDecoder() {
+        {
+            std::lock_guard<std::mutex> lock(mLock);
+            mStop = true;
+        }
+        mCond.notify_all();
+        for (std::thread& t : mThreads) {
+            t.join();
+        }
+    }
+
+    // Returns the decoded bitmap for the given sequence number (frame index,
+    // counting repetitions for looping parts).
+    bool take(size_t seq, SkBitmap* out) {
+        std::unique_lock<std::mutex> lock(mLock);
+        mWanted = seq;
+        while (!mDone.empty() && mDone.begin()->first < seq) {
+            mDone.erase(mDone.begin());
+        }
+        mCond.notify_all();
+        bool ready = mCond.wait_for(lock, std::chrono::milliseconds(1000), [&] {
+            return mDone.count(seq) != 0 || mFailed.count(seq) != 0;
+        });
+        if (!ready || mDone.count(seq) == 0) {
+            return false;
+        }
+        *out = mDone[seq];
+        mDone.erase(seq);
+        return true;
+    }
+
+private:
+    static const size_t kLookahead = 12;
+
+    bool pickLocked(size_t* seq) {
+        for (size_t s = mWanted; s < mWanted + kLookahead; s++) {
+            if (!mLoop && s >= mCount) {
+                break;
+            }
+            if (mDone.count(s) == 0 && mBusy.count(s) == 0 && mFailed.count(s) == 0) {
+                *seq = s;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void workerLoop() {
+        for (;;) {
+            size_t seq = 0;
+            {
+                std::unique_lock<std::mutex> lock(mLock);
+                mCond.wait(lock, [&] { return mStop || pickLocked(&seq); });
+                if (mStop) {
+                    return;
+                }
+                mBusy.insert(seq);
+            }
+            SkBitmap bitmap;
+            bool ok = decodeFrameMap(mPart.frames[seq % mCount].map, &bitmap);
+            {
+                std::lock_guard<std::mutex> lock(mLock);
+                mBusy.erase(seq);
+                if (ok && seq >= mWanted) {
+                    mDone[seq] = bitmap;
+                } else if (!ok) {
+                    mFailed.insert(seq);
+                }
+            }
+            mCond.notify_all();
+        }
+    }
+
+    const BootAnimation::Animation::Part& mPart;
+    const bool mLoop;
+    const size_t mCount;
+    std::mutex mLock;
+    std::condition_variable mCond;
+    std::map<size_t, SkBitmap> mDone;
+    std::set<size_t> mBusy;
+    std::set<size_t> mFailed;
+    size_t mWanted = 0;
+    bool mStop = false;
+    std::vector<std::thread> mThreads;
+};
 
 static const char OEM_BOOTANIMATION_FILE[] = "/oem/media/bootanimation.zip";
 static const char SYSTEM_BOOTANIMATION_FILE[] = "/system/media/bootanimation.zip";
@@ -190,24 +311,24 @@ status_t BootAnimation::initTexture(Texture* texture, AssetManager& assets,
     return NO_ERROR;
 }
 
-status_t BootAnimation::initTexture(FileMap* map, int* width, int* height)
+status_t BootAnimation::initTexture(FileMap* map, int* width, int* height, bool releaseMap)
 {
     SkBitmap bitmap;
-    SkMemoryStream  stream(map->getDataPtr(), map->getDataLength());
-    SkImageDecoder* codec = SkImageDecoder::Factory(&stream);
-    if (codec != NULL) {
-        codec->setDitherImage(false);
-        codec->decode(&stream, &bitmap,
-                kN32_SkColorType,
-                SkImageDecoder::kDecodePixels_Mode);
-        delete codec;
-    }
+    decodeFrameMap(map, &bitmap);
 
     // FileMap memory is never released until application exit.
     // Release it now as the texture is already loaded and the memory used for
     // the packed resource can be released.
-    delete map;
+    // KiroOS: looping parts keep their map to decode the frame again on the next loop.
+    if (releaseMap) {
+        delete map;
+    }
 
+    return uploadBitmap(bitmap, width, height);
+}
+
+status_t BootAnimation::uploadBitmap(SkBitmap& bitmap, int* width, int* height)
+{
     // ensure we can call getPixels(). No need to call unlock, since the
     // bitmap will go out of scope when we return from this method.
     bitmap.lockPixels();
@@ -224,7 +345,11 @@ status_t BootAnimation::initTexture(FileMap* map, int* width, int* height)
 
     switch (bitmap.colorType()) {
         case kN32_SkColorType:
-            if (!mUseNpotTextures && (tw != w || th != h)) {
+            if (mReuseFrameTexture && mFrameTexW == w && mFrameTexH == h) {
+                // KiroOS: same size as the previous animation frame, update in place
+                glTexSubImage2D(GL_TEXTURE_2D, 0,
+                        0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, p);
+            } else if (!mUseNpotTextures && (tw != w || th != h)) {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA,
                         GL_UNSIGNED_BYTE, 0);
                 glTexSubImage2D(GL_TEXTURE_2D, 0,
@@ -286,7 +411,7 @@ status_t BootAnimation::readyToRun() {
 
     // create the native surface
     sp<SurfaceControl> control = session()->createSurface(String8("BootAnimation"),
-            targetW, targetH, PIXEL_FORMAT_RGB_565);
+            targetW, targetH, PIXEL_FORMAT_RGBX_8888); // KiroOS: 32-bit, no banding on gradients
 
     SurfaceComposerClient::openGlobalTransaction();
     SurfaceComposerClient::setDisplayProjection(dtoken, 0, Rect(targetW, targetH), Rect(dinfo.w, dinfo.h));
@@ -351,14 +476,9 @@ status_t BootAnimation::readyToRun() {
 bool BootAnimation::threadLoop()
 {
     bool r;
-    // KiroOS: Check if OTA update installation screen was requested
-    char propUpdating[PROPERTY_VALUE_MAX] = {0};
-    property_get("persist.sys.kiro_updating", propUpdating, "0");
-    bool isUpdateMode = (strcmp(propUpdating, "1") == 0) || (access("/cache/kiro_updating", F_OK) == 0);
-
-    if (isUpdateMode) {
-        r = updateMovie();
-    } else if (mZipFileName.isEmpty()) {
+    // We have no bootanimation file, so we use the stock android logo
+    // animation.
+    if (mZipFileName.isEmpty()) {
         r = android();
     } else {
         r = movie();
@@ -749,6 +869,27 @@ bool BootAnimation::preloadZip(Animation& animation)
                 continue;
             }
 
+            // KiroOS: optional static overlay at the root of the zip
+            if (entryName == "overlay.png" || entryName == "overlay.txt") {
+                uint16_t method;
+                if (zip->getEntryInfo(entry, &method, NULL, NULL, NULL, NULL, NULL) &&
+                        method == ZipFileRO::kCompressStored) {
+                    FileMap* map = zip->createEntryFileMap(entry);
+                    if (map && entryName == "overlay.png") {
+                        animation.overlayMap = map;
+                    } else if (map) {
+                        String8 txt((char const*)map->getDataPtr(), map->getDataLength());
+                        if (sscanf(txt.string(), "%d %d %d %d", &animation.overlayX,
+                                &animation.overlayY, &animation.overlayStart,
+                                &animation.overlayFade) != 4) {
+                            ALOGE("Error parsing overlay.txt");
+                        }
+                        delete map;
+                    }
+                }
+                continue;
+            }
+
             for (size_t j = 0; j < pcount; j++) {
                 if (path == animation.parts[j].path) {
                     uint16_t method;
@@ -916,6 +1057,25 @@ bool BootAnimation::playAnimation(const Animation& animation)
     const int animationX = (mWidth - scaledW) / 2;
     const int animationY = (mHeight - scaledH) / 2;
 
+    // KiroOS: static overlay texture, uploaded once and blended over every frame
+    GLuint overlayTex = 0;
+    int overlayW = 0, overlayH = 0;
+    size_t overlayFrame = 0;
+    if (animation.overlayMap != NULL) {
+        SkBitmap bitmap;
+        if (decodeFrameMap(animation.overlayMap, &bitmap) &&
+                bitmap.colorType() == kN32_SkColorType) {
+            glGenTextures(1, &overlayTex);
+            glBindTexture(GL_TEXTURE_2D, overlayTex);
+            glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            uploadBitmap(bitmap, &overlayW, &overlayH);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+    }
+
     for (size_t i=0 ; i<pcount ; i++) {
         const Animation::Part& part(animation.parts[i]);
         const size_t fcount = part.frames.size();
@@ -928,6 +1088,11 @@ bool BootAnimation::playAnimation(const Animation& animation)
                 break;
             continue; //to next part
         }
+
+        // KiroOS: decode ahead on 6 worker threads (the GL thread only uploads)
+        FrameDecoder decoder(part, part.count != 1, 6);
+        mFrameTexW = mFrameTexH = 0;
+        size_t seq = 0;
 
         for (int r=0 ; !part.count || r<part.count ; r++) {
             // Exit any non playuntil complete parts immediately
@@ -950,17 +1115,22 @@ bool BootAnimation::playAnimation(const Animation& animation)
                 const Animation::Frame& frame(part.frames[j]);
                 nsecs_t lastFrame = systemTime();
 
-                if (r > 0) {
-                    glBindTexture(GL_TEXTURE_2D, frame.tid);
-                } else {
-                    if (part.count != 1) {
-                        glGenTextures(1, &frame.tid);
-                        glBindTexture(GL_TEXTURE_2D, frame.tid);
-                        glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                        glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    }
+                // KiroOS: never cache looping frames as GPU textures (a 1440p loop would need
+                // hundreds of MB). Every frame is uploaded into the shared texture instead.
+                {
+                    SkBitmap bitmap;
                     int w, h;
-                    initTexture(frame.map, &w, &h);
+                    if (decoder.take(seq, &bitmap)) {
+                        glBindTexture(GL_TEXTURE_2D, 0);
+                        mReuseFrameTexture = true;
+                        uploadBitmap(bitmap, &w, &h);
+                        mReuseFrameTexture = false;
+                        if (bitmap.colorType() == kN32_SkColorType) {
+                            mFrameTexW = w;
+                            mFrameTexH = h;
+                        }
+                    }
+                    seq++;
                 }
 
                 const int frameW = (int)(frame.trimWidth * scale);
@@ -981,6 +1151,30 @@ bool BootAnimation::playAnimation(const Animation& animation)
                     glDisable(GL_SCISSOR_TEST);
                 }
                 glDrawTexiOES(xc, mHeight - (yc + frameH), 0, frameW, frameH);
+                if (overlayTex != 0 && (int)overlayFrame >= animation.overlayStart) {
+                    float a = 1.0f;
+                    if (animation.overlayFade > 0) {
+                        a = (float)((int)overlayFrame - animation.overlayStart + 1) /
+                                animation.overlayFade;
+                        if (a > 1.0f) a = 1.0f;
+                    }
+                    const int ow = (int)(overlayW * scale);
+                    const int oh = (int)(overlayH * scale);
+                    const int ox = animationX + (int)(animation.overlayX * scale);
+                    const int oy = animationY + (int)(animation.overlayY * scale);
+                    glBindTexture(GL_TEXTURE_2D, overlayTex);
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);  // Skia bitmaps are premultiplied
+                    glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+                    glColor4f(a, a, a, a);
+                    glDrawTexiOES(ox, mHeight - (oy + oh), 0, ow, oh);
+                    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+                    glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    glDisable(GL_BLEND);
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                }
+                overlayFrame++;
                 if (mClockEnabled && mTimeIsAccurate && validClock(part)) {
                     drawClock(animation.clockFont, part.clockPosX, part.clockPosY);
                 }
@@ -1014,15 +1208,9 @@ bool BootAnimation::playAnimation(const Animation& animation)
 
     }
 
-    // Free textures created for looping parts now that the animation is done.
-    for (const Animation::Part& part : animation.parts) {
-        if (part.count != 1) {
-            const size_t fcount = part.frames.size();
-            for (size_t j = 0; j < fcount; j++) {
-                const Animation::Frame& frame(part.frames[j]);
-                glDeleteTextures(1, &frame.tid);
-            }
-        }
+    // KiroOS: no per-frame textures are created (see above), only the overlay.
+    if (overlayTex != 0) {
+        glDeleteTextures(1, &overlayTex);
     }
 
     // we've finally played everything we're going to play
@@ -1039,6 +1227,7 @@ void BootAnimation::releaseAnimation(Animation* animation) const
         if (it->animation)
             releaseAnimation(it->animation);
     }
+    delete animation->overlayMap;
     if (animation->zip)
         delete animation->zip;
     delete animation;
@@ -1230,194 +1419,5 @@ status_t BootAnimation::TimeCheckThread::readyToRun() {
 }
 
 // ---------------------------------------------------------------------------
-
-static void drawSolidRect(int x, int y, int w, int h, float r, float g, float b, float a = 1.0f) {
-    if (w <= 0 || h <= 0) return;
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(x, y, w, h);
-    glClearColor(r, g, b, a);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-}
-
-bool BootAnimation::updateMovie()
-{
-    Animation* animation = loadAnimation(mZipFileName);
-    if (animation == NULL) {
-        return android();
-    }
-
-    // Check if npot textures are supported
-    mUseNpotTextures = false;
-    String8 gl_extensions;
-    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-    if (!exts) {
-        glGetError();
-    } else {
-        gl_extensions.setTo(exts);
-        if ((gl_extensions.find("GL_ARB_texture_non_power_of_two") != -1) ||
-            (gl_extensions.find("GL_OES_texture_npot") != -1)) {
-            mUseNpotTextures = true;
-        }
-    }
-
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glShadeModel(GL_FLAT);
-    glDisable(GL_DITHER);
-    glDisable(GL_SCISSOR_TEST);
-    glDisable(GL_BLEND);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glEnable(GL_TEXTURE_2D);
-    glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    Font font;
-    memset(&font, 0, sizeof(font));
-    bool fontLoaded = (initFont(&font, CLOCK_FONT_ASSET) == NO_ERROR);
-
-    // Dynamic scaling to fit native screen resolution (720p, 1080p, 1440p)
-    float scale = 1.0f;
-    if (animation->width > 0 && animation->height > 0) {
-        float scaleX = (float)mWidth / (float)animation->width;
-        float scaleY = (float)mHeight / (float)animation->height;
-        scale = (scaleX < scaleY) ? scaleX : scaleY;
-    }
-    const int scaledW = (int)(animation->width * scale);
-    const int scaledH = (int)(animation->height * scale);
-    const int animationX = (mWidth - scaledW) / 2;
-    const int animationY = (mHeight - scaledH) / 2;
-
-    int fps = (animation->fps > 0) ? animation->fps : 30;
-    nsecs_t frameDuration = s2ns(1) / fps;
-
-    // Progress bar geometry (centered horizontally, lower third)
-    const int barWidth = (int)(mWidth * 0.72f);
-    const int barHeight = (mHeight > 1920) ? 18 : 12;
-    const int barX = (mWidth - barWidth) / 2;
-    const int barY = (int)(mHeight * 0.28f);
-
-    // Progression frames: 12 seconds progression + hold at 100% until system ready
-    const int progressFrames = fps * 12;
-    const int minHoldFrames = (int)(fps * 2.5f);
-    const int maxTotalFrames = progressFrames + fps * 35; // Safety ceiling
-
-    size_t partIndex = 0;
-    if (animation->parts.size() > 1) {
-        partIndex = 1;
-    }
-
-    for (int step = 0; step < maxTotalFrames; step++) {
-        nsecs_t frameStart = systemTime();
-
-        checkExit();
-        if (step >= progressFrames + minHoldFrames && exitPending()) {
-            break;
-        }
-
-        float progress = (float)step / (float)progressFrames;
-        if (progress > 1.0f) progress = 1.0f;
-        int pct = (int)(progress * 100.0f);
-
-        // 1. Render animated glowing logo frame
-        if (animation->parts.size() > 0) {
-            const Animation::Part& part(animation->parts[partIndex]);
-            size_t numFrames = part.frames.size();
-            if (numFrames > 0) {
-                const Animation::Frame& frame(part.frames[step % numFrames]);
-                if (frame.tid == 0) {
-                    glGenTextures(1, &frame.tid);
-                    glBindTexture(GL_TEXTURE_2D, frame.tid);
-                    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    int w, h;
-                    initTexture(frame.map, &w, &h);
-                } else {
-                    glBindTexture(GL_TEXTURE_2D, frame.tid);
-                }
-
-                const int frameW = (int)(frame.trimWidth * scale);
-                const int frameH = (int)(frame.trimHeight * scale);
-                const int xc = animationX + (int)(frame.trimX * scale);
-                const int yc = animationY + (int)(frame.trimY * scale);
-
-                Region clearReg(Rect(mWidth, mHeight));
-                clearReg.subtractSelf(Rect(xc, yc, xc + frameW, yc + frameH));
-                if (!clearReg.isEmpty()) {
-                    Region::const_iterator head(clearReg.begin());
-                    Region::const_iterator tail(clearReg.end());
-                    glEnable(GL_SCISSOR_TEST);
-                    while (head != tail) {
-                        const Rect& r2(*head++);
-                        glScissor(r2.left, mHeight - r2.bottom, r2.width(), r2.height());
-                        glClear(GL_COLOR_BUFFER_BIT);
-                    }
-                    glDisable(GL_SCISSOR_TEST);
-                }
-                glDrawTexiOES(xc, mHeight - (yc + frameH), 0, frameW, frameH);
-            }
-        }
-
-        // 2. Render Progress Bar
-        // Outer dark border
-        drawSolidRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, 0.22f, 0.25f, 0.28f, 1.0f);
-        // Track background
-        drawSolidRect(barX, barY, barWidth, barHeight, 0.08f, 0.08f, 0.10f, 1.0f);
-        // Cyan fill (#00E5FF)
-        int fillW = (int)(barWidth * progress);
-        if (fillW > 0) {
-            if (fillW > barWidth) fillW = barWidth;
-            drawSolidRect(barX, barY, fillW, barHeight, 0.0f, 0.898f, 1.0f, 1.0f);
-        }
-
-        // 3. Render Status Texts
-        if (fontLoaded) {
-            char pctBuf[32];
-            snprintf(pctBuf, sizeof(pctBuf), "%d%%", pct);
-
-            int tx1 = TEXT_CENTER_VALUE;
-            int ty1 = barY + 115;
-            int tx2 = TEXT_CENTER_VALUE;
-            int ty2 = barY + 55;
-            int tx3 = TEXT_CENTER_VALUE;
-            int ty3 = barY - 65;
-
-            if (progress < 1.0f) {
-                drawText("Installazione aggiornamento di sistema in corso...", font, true, &tx1, &ty1);
-                drawText("Non spegnere il dispositivo", font, false, &tx2, &ty2);
-                drawText(pctBuf, font, true, &tx3, &ty3);
-            } else {
-                drawText("Aggiornamento completato!", font, true, &tx1, &ty1);
-                drawText("Avvio del sistema in corso...", font, false, &tx2, &ty2);
-                drawText("100%", font, true, &tx3, &ty3);
-            }
-        }
-
-        eglSwapBuffers(mDisplay, mSurface);
-
-        nsecs_t now = systemTime();
-        nsecs_t delay = frameDuration - (now - frameStart);
-        if (delay > 0) {
-            usleep(ns2us(delay));
-        }
-    }
-
-    // Finished installation sequence! Clear flags.
-    unlink("/cache/kiro_updating");
-    property_set("persist.sys.kiro_updating", "0");
-
-    if (fontLoaded) {
-        glDeleteTextures(1, &font.texture.name);
-    }
-    releaseAnimation(animation);
-
-    // Allow surfaceflinger exit if signaled
-    checkExit();
-    return false;
-}
 
 } // namespace android
