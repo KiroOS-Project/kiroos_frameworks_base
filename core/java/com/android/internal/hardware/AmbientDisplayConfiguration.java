@@ -29,6 +29,8 @@ public class AmbientDisplayConfiguration {
     /** KiroOS: minutes the always on display stays visible after the screen turns off, 0 = always. */
     public static final String ALWAYS_ON_TIMEOUT = "kiroos_aod_timeout";
     public static final int ALWAYS_ON_DEFAULT_TIMEOUT = 10;
+    /** KiroOS: same as ALWAYS_ON_TIMEOUT in seconds (allows 15/30 s); wins when set. */
+    public static final String ALWAYS_ON_TIMEOUT_SECONDS = "kiroos_aod_timeout_seconds";
 
     private final Context mContext;
 
@@ -49,9 +51,17 @@ public class AmbientDisplayConfiguration {
 
     /** Milliseconds the always on display stays on, 0 = until the screen is turned on. */
     public long alwaysOnTimeoutMillis(int user) {
-        int minutes = Settings.Secure.getIntForUser(mContext.getContentResolver(),
+        return alwaysOnTimeoutSeconds(mContext, user) * 1000L;
+    }
+
+    /** Seconds the always on display stays on, 0 = always; falls back to the old minutes key. */
+    public static int alwaysOnTimeoutSeconds(Context context, int user) {
+        int seconds = Settings.Secure.getIntForUser(context.getContentResolver(),
+                ALWAYS_ON_TIMEOUT_SECONDS, -1, user);
+        if (seconds >= 0) return seconds;
+        int minutes = Settings.Secure.getIntForUser(context.getContentResolver(),
                 ALWAYS_ON_TIMEOUT, ALWAYS_ON_DEFAULT_TIMEOUT, user);
-        return minutes <= 0 ? 0 : minutes * 60000L;
+        return minutes <= 0 ? 0 : minutes * 60;
     }
     
     public boolean available() {

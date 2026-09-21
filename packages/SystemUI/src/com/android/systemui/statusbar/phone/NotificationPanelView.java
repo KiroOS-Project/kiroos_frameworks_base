@@ -798,11 +798,12 @@ public class NotificationPanelView extends PanelView implements
         if (mBlockTouches || mQsContainer.isCustomizing()) {
             return false;
         }
-        if (mDoubleTapToSleepEnabled
+        // KiroOS: not while dozing, there a double tap turns the screen on instead
+        if (mDoubleTapToSleepEnabled && !mDozing
                 && mStatusBarState == StatusBarState.KEYGUARD
                 && event.getY() < mStatusBarHeaderHeight) {
             mDoubleTapGesture.onTouchEvent(event);
-        } else if (mDoubleTapToSleepAnywhere
+        } else if (mDoubleTapToSleepAnywhere && !mDozing
                 && mStatusBarState == StatusBarState.KEYGUARD) {
             mDoubleTapGesture.onTouchEvent(event);
         }
@@ -2475,7 +2476,8 @@ public class NotificationPanelView extends PanelView implements
                 }
                 break;
             case DOUBLE_TAP_SLEEP_ANYWHERE:
-                mDoubleTapToSleepAnywhere = newValue == null || Integer.parseInt(newValue) == 1;
+                // KiroOS: off unless enabled, like the Settings switch shows
+                mDoubleTapToSleepAnywhere = newValue != null && Integer.parseInt(newValue) == 1;
                 break;
             default:
                 break;

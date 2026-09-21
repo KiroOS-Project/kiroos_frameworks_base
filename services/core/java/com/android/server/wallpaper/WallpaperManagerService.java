@@ -340,7 +340,11 @@ public class WallpaperManagerService extends IWallpaperManager.Stub {
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(wallpaper.wallpaperFile.getAbsolutePath(), options);
         if (options.outWidth <= 0 || options.outHeight <= 0) {
-            Slog.e(TAG, "Invalid wallpaper data");
+            // KiroOS: with the default wallpaper there is no source file to crop at boot;
+            // only a file that exists and cannot be decoded is an error.
+            if (wallpaper.wallpaperFile.length() > 0) {
+                Slog.e(TAG, "Invalid wallpaper data");
+            }
             success = false;
         } else {
             boolean needCrop = false;
@@ -512,7 +516,9 @@ public class WallpaperManagerService extends IWallpaperManager.Stub {
         }
 
         if (!success) {
-            Slog.e(TAG, "Unable to apply new wallpaper");
+            if (wallpaper.wallpaperFile.length() > 0) {
+                Slog.e(TAG, "Unable to apply new wallpaper");
+            }
             wallpaper.cropFile.delete();
         }
 

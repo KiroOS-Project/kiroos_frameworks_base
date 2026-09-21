@@ -89,6 +89,85 @@ public class DozeService extends DreamService {
 
     private AmbientDisplayConfiguration mConfig;
 
+    // KiroOS: always on display power handling. The panel keeps its image by itself (LPD
+    // command mode), so once the AOD frame is drawn the pulse wakelock is dropped and the
+    // CPU may suspend. A wakeup alarm every minute updates the clock and the burn-in shift,
+    // another one ends the AOD when its time runs out.
+    private static final String AOD_TICK_TAG = "kiroos_aod_tick";
+    private static final String AOD_TIMEOUT_TAG = "kiroos_aod_timeout";
+    private static final long AOD_SETTLE_MS = 1500;
+    private static final long AOD_TICK_WAKE_MS = 1200;
+    private android.app.AlarmManager mAlarmManager;
+    private PowerManager.WakeLock mAodTickWakeLock;
+    private boolean mAlwaysOnShowing;
+    private boolean mAodPulseWakeLockDropped;
+
+    private final Runnable mDropAodPulseWakeLock = new Runnable() {
+        @Override
+        public void run() {
+            if (mAlwaysOnShowing && !mAodPulseWakeLockDropped) {
+                mAodPulseWakeLockDropped = true;
+                mWakeLock.release();
+            }
+        }
+    };
+
+    private final android.app.AlarmManager.OnAlarmListener mAodTick =
+            new android.app.AlarmManager.OnAlarmListener() {
+        @Override
+        public void onAlarm() {
+            if (!mAlwaysOnShowing) return;
+            // Enough time for the time tick broadcast and one frame to be drawn.
+            mAodTickWakeLock.acquire(AOD_TICK_WAKE_MS);
+            mHost.onAlwaysOnTick();
+            scheduleAodTick();
+        }
+    };
+
+    private final android.app.AlarmManager.OnAlarmListener mAodTimeout =
+            new android.app.AlarmManager.OnAlarmListener() {
+        @Override
+        public void onAlarm() {
+            if (!mAlwaysOnShowing) return;
+            // Stay awake for the fade out; onPulseFinished turns the display off.
+            mAodTickWakeLock.acquire(AOD_TICK_WAKE_MS * 3);
+            mHost.endAlwaysOn();
+        }
+    };
+
+    private void scheduleAodTick() {
+        final long now = System.currentTimeMillis();
+        final long nextMinute = (now / 60000L + 1) * 60000L + 50;
+        mAlarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, nextMinute,
+                AOD_TICK_TAG, mAodTick, mHandler);
+    }
+
+    private void startAlwaysOnPower() {
+        mAlwaysOnShowing = true;
+        mAodPulseWakeLockDropped = false;
+        scheduleAodTick();
+        final long timeout = mConfig.alwaysOnTimeoutMillis(UserHandle.USER_CURRENT);
+        if (timeout > 0) {
+            mAlarmManager.setExact(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + timeout, AOD_TIMEOUT_TAG, mAodTimeout,
+                    mHandler);
+        }
+        mHandler.postDelayed(mDropAodPulseWakeLock, AOD_SETTLE_MS);
+    }
+
+    /** Returns true when the pulse wakelock was already dropped for the always on display. */
+    private boolean stopAlwaysOnPower() {
+        final boolean dropped = mAodPulseWakeLockDropped;
+        mHandler.removeCallbacks(mDropAodPulseWakeLock);
+        if (mAlwaysOnShowing) {
+            mAlarmManager.cancel(mAodTick);
+            mAlarmManager.cancel(mAodTimeout);
+        }
+        mAlwaysOnShowing = false;
+        mAodPulseWakeLockDropped = false;
+        return dropped;
+    }
+
     public DozeService() {
         if (DEBUG) Log.d(mTag, "new DozeService()");
         setDebug(DEBUG);
@@ -151,9 +230,24 @@ public class DozeService extends DreamService {
         mPowerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
         mWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
         mWakeLock.setReferenceCounted(true);
+        mAodTickWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                TAG + ":aod");
+        mAodTickWakeLock.setReferenceCounted(false);
+        mAlarmManager = (android.app.AlarmManager) mContext.getSystemService(
+                Context.ALARM_SERVICE);
         mDisplayStateSupported = mDozeParameters.getDisplayStateSupported();
         mUiModeManager = (UiModeManager) mContext.getSystemService(Context.UI_MODE_SERVICE);
         turnDisplayOff();
+    }
+
+    @Override
+    public void onDestroy() {
+        if (mAlarmManager != null) {
+            mAlarmManager.cancel(mAodTick);
+            mAlarmManager.cancel(mAodTimeout);
+        }
+        mHandler.removeCallbacks(mDropAodPulseWakeLock);
+        super.onDestroy();
     }
 
     @Override
@@ -285,11 +379,15 @@ public class DozeService extends DreamService {
                             ? getResources().getInteger(R.integer.kiroos_aod_brightness)
                             : PowerManager.BRIGHTNESS_DEFAULT);
                     turnDisplayOn();
+                    if (reason == DozeLog.PULSE_REASON_ALWAYS_ON) {
+                        startAlwaysOnPower();
+                    }
                 }
             }
 
             @Override
             public void onPulseFinished() {
+                final boolean aodWakeLockDropped = stopAlwaysOnPower();
                 if (mPulsing && mDreaming) {
                     mPulsing = false;
                     if (REREGISTER_ALL_SENSORS_ON_SCREEN_OFF) {
@@ -297,7 +395,12 @@ public class DozeService extends DreamService {
                     }
                     turnDisplayOff();
                 }
-                mWakeLock.release(); // needs to be unconditional to balance acquire
+                // needs to be unconditional to balance acquire (unless the always on
+                // display already dropped it)
+                if (!aodWakeLockDropped) {
+                    mWakeLock.release();
+                }
+                mAodTickWakeLock.release();
             }
         }, reason);
     }

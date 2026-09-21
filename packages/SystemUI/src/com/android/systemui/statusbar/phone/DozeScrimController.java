@@ -122,8 +122,21 @@ public class DozeScrimController {
         }
     }
 
+    /** KiroOS: fades the always on display out (its time ran out). */
+    public void endAlwaysOn() {
+        if (isPulsing() && mPulseReason == DozeLog.PULSE_REASON_ALWAYS_ON) {
+            mHandler.removeCallbacks(mPulseOut);
+            mHandler.post(mPulseOut);
+        }
+    }
+
     public boolean isPulsing() {
         return mPulseCallback != null;
+    }
+
+    /** KiroOS: the always on display (not a notification pulse) is showing. */
+    public boolean isAlwaysOnShowing() {
+        return isPulsing() && mPulseReason == DozeLog.PULSE_REASON_ALWAYS_ON;
     }
 
     public boolean isDozing() {
@@ -258,12 +271,9 @@ public class DozeScrimController {
             if (DEBUG) Log.d(TAG, "Pulse in finished, mDozing=" + mDozing);
             if (!mDozing) return;
             if (mPulseReason == DozeLog.PULSE_REASON_ALWAYS_ON) {
-                // KiroOS: the always on display stays until the chosen time runs out
-                // (or until the screen is turned on, which ends dozing)
-                long timeout = mAmbientConfig.alwaysOnTimeoutMillis(UserHandle.USER_CURRENT);
-                if (timeout > 0) {
-                    mHandler.postDelayed(mPulseOut, timeout);
-                }
+                // KiroOS: the always on display stays until the chosen time runs out (the
+                // doze service ends it with a wakeup alarm, the CPU sleeps in between) or
+                // until the screen is turned on, which ends dozing.
                 return;
             }
             mHandler.postDelayed(mPulseOut, mDozeParameters.getPulseVisibleDuration());

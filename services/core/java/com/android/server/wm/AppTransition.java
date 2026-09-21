@@ -156,6 +156,10 @@ public class AppTransition implements Dump {
      * involved, to make it more understandable.
      */
     private static final int MAX_CLIP_REVEAL_TRANSITION_DURATION = 420;
+    // KiroOS launch zoom (apps from the launcher, widgets, cards)
+    private static final int KIRO_LAUNCH_DURATION = 300;
+    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR =
+            new PathInterpolator(0.2f, 0.9f, 0.1f, 1f);
     private static final int THUMBNAIL_APP_TRANSITION_DURATION = 336;
     private static final long APP_TRANSITION_TIMEOUT_MS = 5000;
     static final int MAX_APP_TRANSITION_DURATION = 3 * 1000; // 3 secs.
@@ -615,22 +619,10 @@ public class AppTransition implements Dump {
         final int appWidth = containingFrame.width();
         final int appHeight = containingFrame.height();
         if (enter) {
-            // Entering app zooms out from the center of the initial rect.
-            float scaleW = mTmpRect.width() / (float) appWidth;
-            float scaleH = mTmpRect.height() / (float) appHeight;
-            Animation scale = new ScaleAnimation(scaleW, 1, scaleH, 1,
-                    computePivot(mTmpRect.left, scaleW),
-                    computePivot(mTmpRect.top, scaleH));
-            scale.setInterpolator(mDecelerateInterpolator);
-
-            Animation alpha = new AlphaAnimation(0, 1);
-            alpha.setInterpolator(mThumbnailFadeOutInterpolator);
-
-            AnimationSet set = new AnimationSet(false);
-            set.addAnimation(scale);
-            set.addAnimation(alpha);
-            set.setDetachWallpaper(true);
-            a = set;
+            // KiroOS: the app grows out of the icon / widget that was tapped.
+            a = createKiroLaunchZoom(mTmpRect, appWidth, appHeight);
+            a.initialize(appWidth, appHeight, appWidth, appHeight);
+            return a;
         } else  if (transit == TRANSIT_WALLPAPER_INTRA_OPEN ||
                     transit == TRANSIT_WALLPAPER_INTRA_CLOSE) {
             // If we are on top of the wallpaper, we need an animation that
@@ -737,9 +729,57 @@ public class AppTransition implements Dump {
                 (MAX_CLIP_REVEAL_TRANSITION_DURATION - DEFAULT_APP_TRANSITION_DURATION));
     }
 
+    /**
+     * KiroOS launch zoom: the window scales up from the tapped rect (icon, widget, card) to full
+     * screen with one soft ease-out and fades in over the first part. Lighter than the stock clip
+     * reveal (no clip rects, one transform) and shorter.
+     */
+    private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight) {
+        // Uniform scale (no squashing): start as a small copy of the app centered on the rect.
+        float s = 0.3f;
+        float cx = appWidth / 2f;
+        float cy = appHeight / 2f;
+        if (appWidth > 0 && appHeight > 0 && !from.isEmpty()) {
+            s = Math.max(from.width() / (float) appWidth, from.height() / (float) appHeight);
+            cx = from.exactCenterX();
+            cy = from.exactCenterY();
+        }
+        s = Math.max(0.12f, Math.min(0.6f, s));
+        final float pivotX = computePivot((int) (cx - s * appWidth / 2f), s);
+        final float pivotY = computePivot((int) (cy - s * appHeight / 2f), s);
+
+        Animation scale = new ScaleAnimation(s, 1f, s, 1f, pivotX, pivotY);
+        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        scale.setDuration(KIRO_LAUNCH_DURATION);
+
+        Animation alpha = new AlphaAnimation(0f, 1f);
+        alpha.setInterpolator(mLinearOutSlowInInterpolator);
+        alpha.setDuration(KIRO_LAUNCH_DURATION / 3);
+
+        AnimationSet set = new AnimationSet(false);
+        set.addAnimation(scale);
+        set.addAnimation(alpha);
+        set.setDetachWallpaper(true);
+        set.setZAdjustment(Animation.ZORDER_TOP);
+        set.setFillAfter(true);
+        return set;
+    }
+
     private Animation createClipRevealAnimationLocked(int transit, boolean enter, Rect appFrame,
             Rect displayFrame) {
         final Animation anim;
+        if (enter) {
+            // KiroOS: same launch zoom as widgets use (see createKiroLaunchZoom)
+            getDefaultNextAppTransitionStartRect(mTmpRect);
+            mTmpRect.offset(-appFrame.left, -appFrame.top);
+            anim = createKiroLaunchZoom(mTmpRect, appFrame.width(), appFrame.height());
+            anim.initialize(appFrame.width(), appFrame.height(), appFrame.width(),
+                    appFrame.height());
+            mLastHadClipReveal = false;
+            mLastClipRevealTransitionDuration = KIRO_LAUNCH_DURATION;
+            mLastClipRevealMaxTranslation = 0;
+            return anim;
+        }
         if (enter) {
             final int appWidth = appFrame.width();
             final int appHeight = appFrame.height();

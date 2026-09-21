@@ -37,6 +37,7 @@ import android.os.IPowerManager;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemProperties;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.ActionMode;
@@ -100,6 +101,9 @@ public class StatusBarWindowView extends FrameLayout implements TunerService.Tun
 
     private boolean mDoubleTapToSleepEnabled;
     private GestureDetector mDoubleTapGesture;
+    private GestureDetector mDoubleTapWakeGesture;
+    // Same switch as the screen-off swipe up gesture (Settings > Display)
+    private static final String SWIPE_WAKE_PROP = "persist.sys.kiroos.swipe_wake";
 
     public StatusBarWindowView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -215,6 +219,18 @@ public class StatusBarWindowView extends FrameLayout implements TunerService.Tun
                 return true;
             }
         });
+        mDoubleTapWakeGesture = new GestureDetector(mContext,
+                new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                if (!mService.isDozing()) return false;
+                PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    pm.wakeUp(e.getEventTime(), "com.android.systemui:DOUBLE_TAP_WAKE");
+                }
+                return true;
+            }
+        });
 
         // We need to ensure that our window doesn't suffer from overdraw which would normally
         // occur if our window is translucent. Since we are drawing the whole window anyway with
@@ -286,6 +302,12 @@ public class StatusBarWindowView extends FrameLayout implements TunerService.Tun
         if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
             mStackScrollLayout.closeControlsIfOutsideTouch(ev);
         }
+        // KiroOS: while the always-on display is showing the touch panel is fully awake, so a
+        // real double tap anywhere turns the screen on (with the display off, the touch IC's
+        // own swipe up gesture does it instead).
+        if (mService.isDozing() && SystemProperties.getBoolean(SWIPE_WAKE_PROP, false)) {
+            mDoubleTapWakeGesture.onTouchEvent(ev);
+        }
 
         return super.dispatchTouchEvent(ev);
     }
@@ -293,7 +315,7 @@ public class StatusBarWindowView extends FrameLayout implements TunerService.Tun
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
         boolean intercept = false;
-        if (mDoubleTapToSleepEnabled
+        if (mDoubleTapToSleepEnabled && !mService.isDozing()
                 && ev.getY() < mStatusBarHeaderHeight) {
             if (DEBUG) Log.w(TAG, "logging double tap gesture");
             mDoubleTapGesture.onTouchEvent(ev);

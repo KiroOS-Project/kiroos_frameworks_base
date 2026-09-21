@@ -1686,6 +1686,13 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
         if (shadeEntry == null) {
             return;
         }
+        // KiroOS: the curved sides of the S6 edge / edge+ glow for new notifications
+        if (oldEntry == null) {
+            if (mKiroEdgeLighting == null) {
+                mKiroEdgeLighting = new KiroEdgeLighting(mContext);
+            }
+            mKiroEdgeLighting.onNotificationAdded(notification);
+        }
         boolean isHeadsUped = shouldPeek(shadeEntry);
         if (isHeadsUped) {
             mHeadsUpManager.showNotification(shadeEntry);
@@ -2745,6 +2752,8 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
         return mDozing;
     }
 
+    private KiroEdgeLighting mKiroEdgeLighting;
+
     @Override  // NotificationData.Environment
     public String getCurrentMediaNotificationKey() {
         return mMediaNotificationKey;
@@ -2839,6 +2848,14 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     @Override
     protected void updateHeadsUp(String key, Entry entry, boolean shouldPeek,
             boolean alertAgain) {
+        // KiroOS: an update that alerts again (e.g. a new message in the same chat) lights
+        // the edges like a new notification
+        if (alertAgain && entry != null) {
+            if (mKiroEdgeLighting == null) {
+                mKiroEdgeLighting = new KiroEdgeLighting(mContext);
+            }
+            mKiroEdgeLighting.onNotificationAdded(entry.notification);
+        }
         final boolean wasHeadsUp = isHeadsUp(key);
         if (wasHeadsUp) {
             if (!shouldPeek) {
@@ -5300,6 +5317,11 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     }
 
     public void wakeUpIfDozing(long time, MotionEvent event) {
+        // KiroOS: a stray touch on the always on display must not turn the screen on
+        // (pocket, bag); that takes a double tap (Settings > Display > Wake gestures).
+        if (mDozing && mDozeScrimController.isAlwaysOnShowing()) {
+            return;
+        }
         if (mDozing && mDozeScrimController.isPulsing()) {
             PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
             pm.wakeUp(time, "com.android.systemui:NODOZE");
@@ -5521,6 +5543,16 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
             return mNotificationLightOn;
         }
 
+        @Override
+        public void onAlwaysOnTick() {
+            mHandler.post(mAlwaysOnShift);
+        }
+
+        @Override
+        public void endAlwaysOn() {
+            mHandler.post(() -> mDozeScrimController.endAlwaysOn());
+        }
+
         private void handleStartDozing(@NonNull Runnable ready) {
             if (!mDozingRequested) {
                 mDozingRequested = true;
@@ -5538,9 +5570,6 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                 public void onPulseStarted() {
                     callback.onPulseStarted();
                     mStackScroller.setPulsing(true);
-                    if (alwaysOn) {
-                        mHandler.post(mAlwaysOnShift);
-                    }
                 }
 
                 @Override
@@ -5555,16 +5584,18 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
         }
 
         // KiroOS: the always on display can stay on for a long time on an AMOLED panel, so
-        // its content moves by a few pixels every minute to avoid burn-in.
+        // its content moves by a few pixels every minute to avoid burn-in. The minute tick
+        // comes from the doze service's wakeup alarm: a delayed handler would freeze while
+        // the CPU sleeps.
+        private final java.util.Random mShiftRandom = new java.util.Random();
         private final Runnable mAlwaysOnShift = new Runnable() {
             @Override
             public void run() {
+                if (!mDozeScrimController.isPulsing()) return;
                 final int range = mContext.getResources().getDimensionPixelSize(
                         R.dimen.kiroos_aod_burn_in_offset);
-                final java.util.Random random = new java.util.Random();
-                mNotificationPanel.setTranslationX(random.nextInt(2 * range + 1) - range);
-                mNotificationPanel.setTranslationY(random.nextInt(2 * range + 1) - range);
-                mHandler.postDelayed(this, 60 * 1000);
+                mNotificationPanel.setTranslationX(mShiftRandom.nextInt(2 * range + 1) - range);
+                mNotificationPanel.setTranslationY(mShiftRandom.nextInt(2 * range + 1) - range);
             }
         };
 

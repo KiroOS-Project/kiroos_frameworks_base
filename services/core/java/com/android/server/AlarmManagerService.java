@@ -1324,9 +1324,12 @@ class AlarmManagerService extends SystemService {
             // to do work on behalf of someone else, then always set ALLOW_WHILE_IDLE_UNRESTRICTED.
             // This means we will allow these alarms to go off as normal even while idle, with no
             // timing restrictions.
+            // KiroOS: the always on display clock tick must keep firing in deep doze.
             } else if (workSource == null && (callingUid < Process.FIRST_APPLICATION_UID
                     || Arrays.binarySearch(mDeviceIdleUserWhitelist,
-                            UserHandle.getAppId(callingUid)) >= 0)) {
+                            UserHandle.getAppId(callingUid)) >= 0
+                    || ("com.android.systemui".equals(callingPackage) && listenerTag != null
+                            && listenerTag.startsWith("kiroos_aod")))) {
                 flags |= AlarmManager.FLAG_ALLOW_WHILE_IDLE_UNRESTRICTED;
                 flags &= ~AlarmManager.FLAG_ALLOW_WHILE_IDLE;
             }

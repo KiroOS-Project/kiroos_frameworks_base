@@ -30,6 +30,10 @@ public interface DozeHost {
     boolean isPowerSaveActive();
     boolean isNotificationLightOn();
     boolean isPulsingBlocked();
+    /** KiroOS: once a minute while the always on display is shown (the CPU sleeps in between). */
+    void onAlwaysOnTick();
+    /** KiroOS: the always on display time ran out, fade it out. */
+    void endAlwaysOn();
 
     public interface Callback {
         void onNewNotifications();
