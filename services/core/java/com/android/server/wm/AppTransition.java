@@ -157,9 +157,19 @@ public class AppTransition implements Dump {
      */
     private static final int MAX_CLIP_REVEAL_TRANSITION_DURATION = 420;
     // KiroOS launch zoom (apps from the launcher, widgets, cards)
-    private static final int KIRO_LAUNCH_DURATION = 300;
-    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR =
-            new PathInterpolator(0.2f, 0.9f, 0.1f, 1f);
+    private static final int KIRO_LAUNCH_DURATION = 380;
+    /** the home steps back while the app grows out of the icon */
+    private static final int KIRO_HOME_RECEDE_DURATION = 260;
+    /** emphasized easing: leaves at once, settles long and soft (res interpolator kiro_emphasized) */
+    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR = new PathInterpolator(kiroEmphasized());
+
+    private static Path kiroEmphasized() {
+        final Path p = new Path();
+        p.moveTo(0f, 0f);
+        p.cubicTo(0.05f, 0f, 0.133333f, 0.06f, 0.166666f, 0.4f);
+        p.cubicTo(0.208333f, 0.82f, 0.25f, 1f, 1f, 1f);
+        return p;
+    }
     private static final int THUMBNAIL_APP_TRANSITION_DURATION = 336;
     private static final long APP_TRANSITION_TIMEOUT_MS = 5000;
     static final int MAX_APP_TRANSITION_DURATION = 3 * 1000; // 3 secs.
@@ -623,6 +633,24 @@ public class AppTransition implements Dump {
             a = createKiroLaunchZoom(mTmpRect, appWidth, appHeight);
             a.initialize(appWidth, appHeight, appWidth, appHeight);
             return a;
+        } else if (transit == TRANSIT_WALLPAPER_CLOSE) {
+            // KiroOS: the home steps back and fades, toward the tapped icon, while the app
+            // comes forward; the wallpaper stays still behind both.
+            final float pivotX = mTmpRect.isEmpty() ? appWidth / 2f : mTmpRect.exactCenterX();
+            final float pivotY = mTmpRect.isEmpty() ? appHeight / 2f : mTmpRect.exactCenterY();
+            final Animation scale = new ScaleAnimation(1f, 0.92f, 1f, 0.92f, pivotX, pivotY);
+            scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+            scale.setDuration(KIRO_LAUNCH_DURATION);
+            final Animation fade = new AlphaAnimation(1f, 0f);
+            fade.setInterpolator(mFastOutSlowInInterpolator);
+            fade.setDuration(KIRO_HOME_RECEDE_DURATION);
+            final AnimationSet set = new AnimationSet(false);
+            set.addAnimation(scale);
+            set.addAnimation(fade);
+            set.setDetachWallpaper(true);
+            set.setFillAfter(true);
+            set.initialize(appWidth, appHeight, appWidth, appHeight);
+            return set;
         } else  if (transit == TRANSIT_WALLPAPER_INTRA_OPEN ||
                     transit == TRANSIT_WALLPAPER_INTRA_CLOSE) {
             // If we are on top of the wallpaper, we need an animation that
@@ -752,9 +780,10 @@ public class AppTransition implements Dump {
         scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
         scale.setDuration(KIRO_LAUNCH_DURATION);
 
+        // visible almost at once, so the icon-sized app is never a ghost
         Animation alpha = new AlphaAnimation(0f, 1f);
         alpha.setInterpolator(mLinearOutSlowInInterpolator);
-        alpha.setDuration(KIRO_LAUNCH_DURATION / 3);
+        alpha.setDuration(90);
 
         AnimationSet set = new AnimationSet(false);
         set.addAnimation(scale);
