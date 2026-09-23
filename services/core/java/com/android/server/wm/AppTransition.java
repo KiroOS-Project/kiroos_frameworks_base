@@ -829,6 +829,41 @@ public class AppTransition implements Dump {
     }
 
     /**
+     * KiroOS: the home coming back while an app shrinks into its icon grows around that icon
+     * (a scale about the icon centre keeps the icon still: the app lands on a target that does
+     * not move) and fades in over the first half. Null when no closing app has an icon.
+     */
+    private Animation createKiroHomeReturn(Rect frame) {
+        Rect icon = null;
+        for (int i = mService.mClosingApps.size() - 1; i >= 0 && icon == null; i--) {
+            final AppWindowToken t = mService.mClosingApps.valueAt(i);
+            if (t != null && t.mTask != null) {
+                icon = mKiroIconRects.get(t.mTask.mTaskId);
+            }
+        }
+        final int w = frame.width();
+        final int h = frame.height();
+        if (icon == null || w <= 0 || h <= 0) {
+            return null;
+        }
+        final float px = icon.exactCenterX() - frame.left;
+        final float py = icon.exactCenterY() - frame.top;
+        final Animation scale = new ScaleAnimation(0.94f, 1f, 0.94f, 1f, px, py);
+        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        scale.setDuration(KIRO_CLOSE_DURATION);
+        final Animation fade = new AlphaAnimation(0f, 1f);
+        fade.setInterpolator(mDecelerateInterpolator);
+        fade.setDuration(KIRO_CLOSE_DURATION / 2);
+        final AnimationSet set = new AnimationSet(false);
+        set.addAnimation(scale);
+        set.addAnimation(fade);
+        set.setDetachWallpaper(true);
+        set.setFillAfter(true);
+        set.initialize(w, h, w, h);
+        return set;
+    }
+
+    /**
      * KiroOS close to icon: an app going back to the home shrinks into the icon it was opened
      * from (the same morph as the launch, reversed) and melts into it at the end. Null when
      * the task was not opened from an icon: the stock close animation plays.
@@ -847,8 +882,8 @@ public class AppTransition implements Dump {
         addKiroIconMorph(set, icon, w, h, s, false);
         final Animation fade = new AlphaAnimation(1f, 0f);
         fade.setInterpolator(mLinearOutSlowInInterpolator);
-        fade.setStartOffset(KIRO_CLOSE_DURATION - 130);
-        fade.setDuration(130);
+        fade.setStartOffset(KIRO_CLOSE_DURATION * 55 / 100);
+        fade.setDuration(KIRO_CLOSE_DURATION * 45 / 100);
         set.addAnimation(fade);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
@@ -1672,6 +1707,9 @@ public class AppTransition implements Dump {
                         + " transit=" + appTransitionToString(transit) + " isEntrance=" + enter
                         + " Callers=" + Debug.getCallers(3));
             }
+        } else if (transit == TRANSIT_WALLPAPER_OPEN && enter
+                && (a = createKiroHomeReturn(frame)) != null) {
+            // KiroOS: the home comes forward around the icon the app returns into
         } else if (transit == TRANSIT_WALLPAPER_OPEN && !enter
                 && (a = createKiroCloseToIcon(taskId, frame)) != null) {
             // KiroOS: the app shrinks back into the icon it was opened from
