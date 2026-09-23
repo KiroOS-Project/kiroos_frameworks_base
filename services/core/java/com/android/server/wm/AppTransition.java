@@ -758,39 +758,101 @@ public class AppTransition implements Dump {
     }
 
     /**
-     * KiroOS launch zoom: the window scales up from the tapped rect (icon, widget, card) to full
-     * screen with one soft ease-out and fades in over the first part. Lighter than the stock clip
-     * reveal (no clip rects, one transform) and shorter.
+     * KiroOS launch zoom: the app opens out of the tapped icon. The window starts scaled to
+     * the icon's width and cropped to a square, so it sits exactly on the icon; the scale and
+     * the crop then open to the full screen together, with one soft ease-out. The icon rect
+     * is kept per task, so closing the app shrinks it back into the same icon
+     * (createKiroCloseToIcon).
      */
     private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight) {
-        // Uniform scale (no squashing): start as a small copy of the app centered on the rect.
-        float s = 0.3f;
-        float cx = appWidth / 2f;
-        float cy = appHeight / 2f;
+        final AnimationSet set = new AnimationSet(false);
         if (appWidth > 0 && appHeight > 0 && !from.isEmpty()) {
-            s = Math.max(from.width() / (float) appWidth, from.height() / (float) appHeight);
-            cx = from.exactCenterX();
-            cy = from.exactCenterY();
+            final float s = Math.max(0.06f, Math.min(0.6f, from.width() / (float) appWidth));
+            addKiroIconMorph(set, from, appWidth, appHeight, s, true);
+        } else {
+            final Animation scale = new ScaleAnimation(0.3f, 1f, 0.3f, 1f,
+                    appWidth / 2f, appHeight / 2f);
+            scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+            scale.setDuration(KIRO_LAUNCH_DURATION);
+            set.addAnimation(scale);
         }
-        s = Math.max(0.12f, Math.min(0.6f, s));
-        final float pivotX = computePivot((int) (cx - s * appWidth / 2f), s);
-        final float pivotY = computePivot((int) (cy - s * appHeight / 2f), s);
-
-        Animation scale = new ScaleAnimation(s, 1f, s, 1f, pivotX, pivotY);
-        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
-        scale.setDuration(KIRO_LAUNCH_DURATION);
-
         // visible almost at once, so the icon-sized app is never a ghost
-        Animation alpha = new AlphaAnimation(0f, 1f);
+        final Animation alpha = new AlphaAnimation(0f, 1f);
         alpha.setInterpolator(mLinearOutSlowInInterpolator);
         alpha.setDuration(90);
-
-        AnimationSet set = new AnimationSet(false);
-        set.addAnimation(scale);
         set.addAnimation(alpha);
         set.setDetachWallpaper(true);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
+        return set;
+    }
+
+    /** how long a closing app takes to shrink into its icon */
+    private static final int KIRO_CLOSE_DURATION = 340;
+    /** the icon each task was opened from (screen coordinates), for the way back */
+    private final SparseArray<Rect> mKiroIconRects = new SparseArray<>();
+
+    private void kiroRememberIcon(boolean enter, int taskId) {
+        if (!enter || taskId < 0 || mDefaultNextAppTransitionAnimationSpec == null
+                || mDefaultNextAppTransitionAnimationSpec.rect == null
+                || mDefaultNextAppTransitionAnimationSpec.rect.isEmpty()) {
+            return;
+        }
+        mKiroIconRects.put(taskId, new Rect(mDefaultNextAppTransitionAnimationSpec.rect));
+        while (mKiroIconRects.size() > 48) {
+            mKiroIconRects.removeAt(0); // the oldest tasks have the lowest ids
+        }
+    }
+
+    /**
+     * The icon morph: scale about the pivot that puts the window centre on the icon centre,
+     * and a crop between the full window and the centred square that becomes the icon.
+     */
+    private void addKiroIconMorph(AnimationSet set, Rect icon, int w, int h, float s,
+            boolean open) {
+        final float pivotX = (icon.exactCenterX() - s * w / 2f) / (1f - s);
+        final float pivotY = (icon.exactCenterY() - s * h / 2f) / (1f - s);
+        final Rect full = new Rect(0, 0, w, h);
+        final int half = Math.min(w, h) / 2;
+        final Rect square = new Rect(w / 2 - half, h / 2 - half, w / 2 + half, h / 2 + half);
+        final Animation scale = open ? new ScaleAnimation(s, 1f, s, 1f, pivotX, pivotY)
+                : new ScaleAnimation(1f, s, 1f, s, pivotX, pivotY);
+        final Animation clip = open ? new ClipRectAnimation(square, full)
+                : new ClipRectAnimation(full, square);
+        final int duration = open ? KIRO_LAUNCH_DURATION : KIRO_CLOSE_DURATION;
+        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        scale.setDuration(duration);
+        clip.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        clip.setDuration(duration);
+        set.addAnimation(scale);
+        set.addAnimation(clip);
+    }
+
+    /**
+     * KiroOS close to icon: an app going back to the home shrinks into the icon it was opened
+     * from (the same morph as the launch, reversed) and melts into it at the end. Null when
+     * the task was not opened from an icon: the stock close animation plays.
+     */
+    private Animation createKiroCloseToIcon(int taskId, Rect frame) {
+        final Rect r = mKiroIconRects.get(taskId);
+        final int w = frame.width();
+        final int h = frame.height();
+        if (r == null || w <= 0 || h <= 0) {
+            return null;
+        }
+        final Rect icon = new Rect(r);
+        icon.offset(-frame.left, -frame.top);
+        final float s = Math.max(0.06f, Math.min(0.6f, icon.width() / (float) w));
+        final AnimationSet set = new AnimationSet(false);
+        addKiroIconMorph(set, icon, w, h, s, false);
+        final Animation fade = new AlphaAnimation(1f, 0f);
+        fade.setInterpolator(mLinearOutSlowInInterpolator);
+        fade.setStartOffset(KIRO_CLOSE_DURATION - 130);
+        fade.setDuration(130);
+        set.addAnimation(fade);
+        set.setZAdjustment(Animation.ZORDER_TOP);
+        set.setFillAfter(true);
+        set.initialize(w, h, w, h);
         return set;
     }
 
@@ -1567,6 +1629,7 @@ public class AppTransition implements Dump {
                     + " Callers=" + Debug.getCallers(3));
         } else if (mNextAppTransitionType == NEXT_TRANSIT_TYPE_CLIP_REVEAL) {
             a = createClipRevealAnimationLocked(transit, enter, frame, displayFrame);
+            kiroRememberIcon(enter, taskId);
             if (DEBUG_APP_TRANSITIONS || DEBUG_ANIM) Slog.v(TAG,
                     "applyAnimation:"
                             + " anim=" + a + " nextAppTransition=ANIM_CLIP_REVEAL"
@@ -1574,6 +1637,7 @@ public class AppTransition implements Dump {
                             + " Callers=" + Debug.getCallers(3));
         } else if (mNextAppTransitionType == NEXT_TRANSIT_TYPE_SCALE_UP) {
             a = createScaleUpAnimationLocked(transit, enter, frame);
+            kiroRememberIcon(enter, taskId);
             if (DEBUG_APP_TRANSITIONS || DEBUG_ANIM) Slog.v(TAG,
                     "applyAnimation:"
                     + " anim=" + a + " nextAppTransition=ANIM_SCALE_UP"
@@ -1608,6 +1672,11 @@ public class AppTransition implements Dump {
                         + " transit=" + appTransitionToString(transit) + " isEntrance=" + enter
                         + " Callers=" + Debug.getCallers(3));
             }
+        } else if (transit == TRANSIT_WALLPAPER_OPEN && !enter
+                && (a = createKiroCloseToIcon(taskId, frame)) != null) {
+            // KiroOS: the app shrinks back into the icon it was opened from
+            if (DEBUG_APP_TRANSITIONS || DEBUG_ANIM) Slog.v(TAG,
+                    "applyAnimation: kiro close to icon, task " + taskId);
         } else {
             int animAttr = 0;
             switch (transit) {
