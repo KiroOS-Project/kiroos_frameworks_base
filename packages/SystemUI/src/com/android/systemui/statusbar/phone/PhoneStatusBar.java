@@ -648,6 +648,7 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
             super.onMetadataChanged(metadata);
             if (DEBUG_MEDIA) Log.v(TAG, "DEBUG_MEDIA: onMetadataChanged: " + metadata);
             mMediaMetadata = metadata;
+            kiroTicker().onMedia(metadata);
             updateMediaMetaData(true, true);
         }
     };
@@ -1692,6 +1693,8 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                 mKiroEdgeLighting = new KiroEdgeLighting(mContext);
             }
             mKiroEdgeLighting.onNotificationAdded(notification);
+            com.android.systemui.kiroos.KiroEdgeGlow.onNotification(notification);
+            kiroTicker().onNotification(notification);
         }
         boolean isHeadsUped = shouldPeek(shadeEntry);
         if (isHeadsUped) {
@@ -2388,6 +2391,18 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     /**
      * Refresh or remove lockscreen artwork from media metadata or the lockscreen wallpaper.
      */
+    private com.android.systemui.kiroos.KiroTicker mKiroTicker;
+    private boolean mKiroTickerBound;
+
+    /** KiroOS status bar ticker (new notifications and songs scroll in place of the clock) */
+    private com.android.systemui.kiroos.KiroTicker kiroTicker() {
+        if (mKiroTicker == null || (mStatusBarView != null && !mKiroTickerBound)) {
+            mKiroTicker = new com.android.systemui.kiroos.KiroTicker(mContext, mStatusBarView);
+            mKiroTickerBound = mStatusBarView != null;
+        }
+        return mKiroTicker;
+    }
+
     public void updateMediaMetaData(boolean metaDataChanged, boolean allowEnterAnimation) {
         Trace.beginSection("PhoneStatusBar#updateMediaMetaData");
         if (!SHOW_LOCKSCREEN_MEDIA_ARTWORK) {
@@ -2855,6 +2870,8 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                 mKiroEdgeLighting = new KiroEdgeLighting(mContext);
             }
             mKiroEdgeLighting.onNotificationAdded(entry.notification);
+            com.android.systemui.kiroos.KiroEdgeGlow.onNotification(entry.notification);
+            kiroTicker().onNotification(entry.notification);
         }
         final boolean wasHeadsUp = isHeadsUp(key);
         if (wasHeadsUp) {

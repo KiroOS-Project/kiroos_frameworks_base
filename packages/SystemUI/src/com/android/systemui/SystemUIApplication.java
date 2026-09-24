@@ -59,7 +59,9 @@ public class SystemUIApplication extends Application {
             com.android.systemui.tv.pip.PipUI.class,
             com.android.systemui.shortcut.ShortcutKeyDispatcher.class,
             com.android.systemui.VendorServices.class,
-            com.android.systemui.kiroos.KiroGuardian.class
+            com.android.systemui.kiroos.KiroGuardian.class,
+            com.android.systemui.kiroos.KiroEdgeGlow.class,
+            com.android.systemui.kiroos.KiroPrivacyDots.class
     };
 
     /**
