@@ -44,6 +44,11 @@ public class DisplayTransformManager {
      */
     public static final int LEVEL_COLOR_MATRIX_GRAYSCALE = 200;
     /**
+     * KiroOS DC dimming: below a floor the panel keeps a flicker-free brightness and the
+     * picture is darkened by this matrix instead (DisplayPowerController).
+     */
+    public static final int LEVEL_COLOR_MATRIX_DC_DIMMING = 150;
+    /**
      * Color transform level used by A11y services to invert the display colors.
      */
     public static final int LEVEL_COLOR_MATRIX_INVERT_COLOR = 300;
