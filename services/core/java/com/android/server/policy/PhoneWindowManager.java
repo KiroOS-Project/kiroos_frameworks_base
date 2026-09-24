@@ -877,6 +877,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_CAMERA_LONG_PRESS = 21;
     private static final int MSG_TOGGLE_TORCH = 22;
     private static final int MSG_BACK_DELAYED_PRESS = 23;
+    private static final int MSG_KIRO_POWER_MENU = 24;
 
     private static final int MSG_REQUEST_TRANSIENT_BARS_ARG_STATUS = 0;
     private static final int MSG_REQUEST_TRANSIENT_BARS_ARG_NAVIGATION = 1;
@@ -944,6 +945,13 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     break;
                 case MSG_POWER_LONG_PRESS:
                     powerLongPress();
+                    break;
+                case MSG_KIRO_POWER_MENU:
+                    // still held: the power menu, as always
+                    if (mKiroPowerKaiPending) {
+                        mKiroPowerKaiPending = false;
+                        showGlobalActionsInternal();
+                    }
                     break;
                 case MSG_UPDATE_DREAMING_SLEEP_TOKEN:
                     updateDreamingSleepToken(msg.arg1 != 0);
@@ -1450,6 +1458,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private void interceptPowerKeyUp(KeyEvent event, boolean interactive, boolean canceled) {
+        if (mKiroPowerKaiPending) {
+            // KiroOS: released after the long press but before the power menu: kAI
+            mKiroPowerKaiPending = false;
+            mHandler.removeMessages(MSG_KIRO_POWER_MENU);
+            if (!canceled) {
+                launchKai();
+            }
+        }
         final boolean handled = canceled || mPowerKeyHandled;
         mScreenshotChordPowerKeyTriggered = false;
         cancelPendingScreenshotChordAction();
@@ -1617,6 +1633,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             if (!performHapticFeedbackLw(null, HapticFeedbackConstants.LONG_PRESS, false)) {
                 performAuditoryFeedbackForAccessibilityIfNeed();
             }
+            if (kaiOnPowerEnabled()) {
+                // KiroOS: hold Power and let go -> kAI; keep holding -> the power menu
+                mKiroPowerKaiPending = true;
+                Message menu = mHandler.obtainMessage(MSG_KIRO_POWER_MENU);
+                menu.setAsynchronous(true);
+                mHandler.sendMessageDelayed(menu, KIRO_POWER_MENU_EXTRA_MS);
+                break;
+            }
             showGlobalActionsInternal();
             break;
         case LONG_PRESS_POWER_SHUT_OFF:
@@ -1635,6 +1659,39 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             msg.setAsynchronous(true);
             msg.sendToTarget();
             break;
+        }
+    }
+
+    /** KiroOS: long press on Power opens kAI (Settings > Gestures), the power menu needs a
+     *  longer hold. Not over the lock screen, where the power menu stays as it is. */
+    private static final long KIRO_POWER_MENU_EXTRA_MS = 1500;
+    private boolean mKiroPowerKaiPending;
+
+    private boolean kaiOnPowerEnabled() {
+        if (isKeyguardShowingAndNotOccluded()) {
+            return false;
+        }
+        if (Settings.System.getIntForUser(mContext.getContentResolver(),
+                "kiroos_power_kai", 1, UserHandle.USER_CURRENT) == 0) {
+            return false;
+        }
+        try {
+            mContext.getPackageManager().getPackageInfo("com.kiroos.kai", 0);
+            return true;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    private void launchKai() {
+        final Intent intent = new Intent(Intent.ACTION_MAIN)
+                .setClassName("com.kiroos.kai", "com.kiroos.kai.KaiActivity")
+                .putExtra("from_power_key", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        try {
+            startActivityAsUser(intent, UserHandle.CURRENT_OR_SELF);
+        } catch (Exception e) {
+            Slog.w(TAG, "kAI not started", e);
         }
     }
 

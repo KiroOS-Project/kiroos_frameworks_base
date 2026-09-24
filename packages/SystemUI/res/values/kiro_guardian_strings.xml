@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS Thermal Guardian -->
+<resources>
+    <string name="kiro_hot_title">The phone is hot</string>
+    <string name="kiro_hot_text">To cool it down, background apps were closed and the screen was dimmed. Everything goes back to normal as it cools.</string>
+    <string name="kiro_cooling_title">Cooling down</string>
+    <string name="kiro_cooling_text">The phone got too hot and is resting to protect the battery. It will be usable again below 40 °C.</string>
+    <string name="kiro_cooling_temp">%.1f °C</string>
+    <string name="kiro_cooling_emergency">Emergency call</string>
+</resources>

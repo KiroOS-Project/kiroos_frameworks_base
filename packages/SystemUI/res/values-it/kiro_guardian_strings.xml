@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS Thermal Guardian -->
+<resources>
+    <string name="kiro_hot_title">Il telefono è caldo</string>
+    <string name="kiro_hot_text">Per raffreddarlo ho chiuso le app in background e abbassato la luminosità. Torna tutto normale appena si raffredda.</string>
+    <string name="kiro_cooling_title">Raffreddamento in corso</string>
+    <string name="kiro_cooling_text">Il telefono si è scaldato troppo e si sta riposando per proteggere la batteria. Tornerà utilizzabile sotto i 40 °C.</string>
+    <string name="kiro_cooling_temp">%.1f °C</string>
+    <string name="kiro_cooling_emergency">Chiamata di emergenza</string>
+</resources>
