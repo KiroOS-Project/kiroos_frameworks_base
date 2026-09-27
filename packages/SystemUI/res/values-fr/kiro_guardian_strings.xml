@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS 2.1 translation (fr). Source: kai/l10n/fr.txt -->
+<resources>
+    <string name="kiro_hot_title">Le téléphone chauffe</string>
+    <string name="kiro_hot_text">Pour le refroidir, les applications en arrière-plan ont été fermées et la luminosité a été réduite. Tout revient à la normale en refroidissant.</string>
+    <string name="kiro_cooling_title">Refroidissement</string>
+    <string name="kiro_cooling_text">Le téléphone a trop chauffé et se repose pour protéger la batterie. Il sera de nouveau utilisable en dessous de 40 °C.</string>
+    <string name="kiro_cooling_emergency">Appel d\'urgence</string>
+</resources>

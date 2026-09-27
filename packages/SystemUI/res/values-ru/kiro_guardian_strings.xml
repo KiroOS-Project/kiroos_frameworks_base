@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS 2.1 translation (ru). Source: kai/l10n/ru.txt -->
+<resources>
+    <string name="kiro_hot_title">Телефон нагрелся</string>
+    <string name="kiro_hot_text">Чтобы охладить его, фоновые приложения закрыты, а яркость экрана снижена. Всё вернётся в норму, когда он остынет.</string>
+    <string name="kiro_cooling_title">Охлаждение</string>
+    <string name="kiro_cooling_text">Телефон слишком нагрелся и отдыхает, чтобы защитить батарею. Им снова можно будет пользоваться при температуре ниже 40 °C.</string>
+    <string name="kiro_cooling_emergency">Экстренный вызов</string>
+</resources>

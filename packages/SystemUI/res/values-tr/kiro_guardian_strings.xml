@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS 2.1 translation (tr). Source: kai/l10n/tr.txt -->
+<resources>
+    <string name="kiro_hot_title">Telefon ısındı</string>
+    <string name="kiro_hot_text">Soğutmak için arka plandaki uygulamalar kapatıldı ve ekran karartıldı. Soğudukça her şey normale döner.</string>
+    <string name="kiro_cooling_title">Soğutuluyor</string>
+    <string name="kiro_cooling_text">Telefon çok ısındı ve pili korumak için dinleniyor. 40 °C\'nin altında yeniden kullanılabilir.</string>
+    <string name="kiro_cooling_emergency">Acil arama</string>
+</resources>

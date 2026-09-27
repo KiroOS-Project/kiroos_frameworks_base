@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS 2.1 translation (de). Source: kai/l10n/de.txt -->
+<resources>
+    <string name="kiro_hot_title">Das Telefon ist heiß</string>
+    <string name="kiro_hot_text">Zum Abkühlen wurden Hintergrund-Apps geschlossen und das Display abgedunkelt. Alles wird wieder normal, sobald es abkühlt.</string>
+    <string name="kiro_cooling_title">Abkühlen</string>
+    <string name="kiro_cooling_text">Das Telefon ist zu heiß geworden und ruht, um den Akku zu schützen. Unter 40 °C ist es wieder nutzbar.</string>
+    <string name="kiro_cooling_emergency">Notruf</string>
+</resources>
