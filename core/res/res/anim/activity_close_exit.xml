@@ -11,5 +11,5 @@
             android:pivotX="50%" android:pivotY="50%"
             android:fillEnabled="true" android:fillBefore="true" android:fillAfter="true"
             android:interpolator="@interpolator/fast_out_slow_in"
-            android:duration="240" />
+            android:duration="220" />
 </set>

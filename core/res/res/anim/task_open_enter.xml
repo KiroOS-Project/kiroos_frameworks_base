@@ -11,5 +11,5 @@
             android:pivotX="50%" android:pivotY="50%"
             android:fillEnabled="true" android:fillBefore="true" android:fillAfter="true"
             android:interpolator="@interpolator/kiro_emphasized"
-            android:duration="400" />
+            android:duration="360" />
 </set>
