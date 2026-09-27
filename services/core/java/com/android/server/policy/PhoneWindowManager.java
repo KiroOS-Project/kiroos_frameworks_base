@@ -1662,8 +1662,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
 
-    /** KiroOS: long press on Power opens kAI (Settings > Gestures), the power menu needs a
-     *  longer hold. Not over the lock screen, where the power menu stays as it is. */
+    /** KiroOS: long press on Power opens kAI (Settings > Buttons > Hold for kAI), the power
+     *  menu needs a longer hold. Not over the lock screen, where the power menu stays as it is. */
     private static final long KIRO_POWER_MENU_EXTRA_MS = 1500;
     private boolean mKiroPowerKaiPending;
 
