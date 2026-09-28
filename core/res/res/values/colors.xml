@@ -132,15 +132,15 @@
     <drawable name="notification_template_divider">#29ffffff</drawable>
     <drawable name="notification_template_divider_media">#29ffffff</drawable>
 
-    <color name="notification_material_background_color">#ff181818</color>
+    <color name="notification_material_background_color">#ff1c1c1e</color>
 
     <color name="notification_default_color">#ffb0b0b5</color> <!-- Gray 600 -->
     <color name="notification_icon_default_color">#ffffffff</color>
 
     <color name="notification_progress_background_color">#4DFFFFFF</color>
 
-    <color name="notification_action_list">#ff181818</color>
-    <color name="notification_action_list_dark">#ff181818</color>
+    <color name="notification_action_list">#ff1c1c1e</color>
+    <color name="notification_action_list_dark">#ff1c1c1e</color>
 
     <!-- Keyguard colors -->
     <color name="keyguard_avatar_frame_color">#ffffffff</color>
