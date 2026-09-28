@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS light theme (Settings > Display > Theme: Light): the twins of every colour KiroOS made
+     dark in values/colors.xml. SystemUI switches without a restart: the quick settings are
+     re-inflated and the notifications rebuilt when the theme changes. -->
+<resources>
+    <color name="kiroos_panel_bg">#FFF2F2F7</color>
+    <color name="kiroos_shade_scrim">#FFE9E9EF</color>
+
+    <drawable name="notification_number_text_color">#FF1C1C1E</drawable>
+    <drawable name="status_bar_notification_row_background_color">#FFFFFFFF</drawable>
+    <color name="notification_panel_solid_background">#FFF2F2F7</color>
+    <color name="notification_legacy_background_color">#FFFFFFFF</color>
+    <color name="notification_material_background_color">#FFFFFFFF</color>
+    <color name="notification_material_background_dimmed_color">#FFFFFFFF</color>
+    <color name="notification_material_background_low_priority_color">#FFFFFFFF</color>
+    <color name="notification_shade_background_color">#FFF2F2F7</color>
+    <color name="notification_ripple_untinted_color">#14000000</color>
+    <color name="notification_ripple_color_low_priority">#1A000000</color>
+    <color name="notification_gear_color">#FF6C6C72</color>
+    <color name="notification_guts_bg_color">#FFF2F2F7</color>
+    <color name="notification_guts_secondary_slider_color">#FF8E8E93</color>
+    <color name="notification_guts_icon_tint">#FF1C1C1E</color>
+
+    <color name="qs_text">#FF1C1C1E</color>
+    <color name="qs_subhead">#FF6C6C72</color>
+    <color name="qs_tile_divider">#1F000000</color>
+    <color name="qs_detail_button">#FF1C1C1E</color>
+    <color name="qs_detail_button_white">#FF1C1C1E</color>
+    <color name="qs_detail_transition">#331C1C1E</color>
+    <color name="data_usage_secondary">#FF6C6C72</color>
+    <color name="qs_tile_disabled_color">#FF8E8E93</color>
+    <color name="qs_tile_tint_unavailable">#611C1C1E</color>
+    <color name="qs_tile_tint_inactive">#FF3A3A3C</color>
+    <color name="qs_tile_tint_active">#FFFFFFFF</color>
+    <color name="qs_tile_bg_active">#FF2F7BDA</color>
+    <color name="qs_tile_bg_inactive">#FFFFFFFF</color>
+    <color name="qs_tile_bg_pressed">#1F000000</color>
+
+    <color name="recents_task_bar_default_background_color">#FFF2F2F7</color>
+    <color name="recents_task_view_default_background_color">#FFFFFFFF</color>
+</resources>

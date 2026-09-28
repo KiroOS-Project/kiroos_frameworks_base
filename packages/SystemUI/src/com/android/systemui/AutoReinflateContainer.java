@@ -37,12 +37,16 @@ public class AutoReinflateContainer extends FrameLayout {
     private final int mLayout;
     private int mDensity;
     private LocaleList mLocaleList;
+    /** KiroOS: the night bit of uiMode (Dark / Light theme) */
+    private int mNight;
 
     public AutoReinflateContainer(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
 
         mDensity = context.getResources().getConfiguration().densityDpi;
         mLocaleList = context.getResources().getConfiguration().getLocales();
+        mNight = context.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
 
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.AutoReinflateContainer);
         if (!a.hasValue(R.styleable.AutoReinflateContainer_android_layout)) {
@@ -64,6 +68,13 @@ public class AutoReinflateContainer extends FrameLayout {
         final LocaleList localeList = newConfig.getLocales();
         if (localeList != mLocaleList) {
             mLocaleList = localeList;
+            shouldInflateLayout = true;
+        }
+
+        // KiroOS: the theme changed, the layout picks up its colours again
+        final int night = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (night != mNight) {
+            mNight = night;
             shouldInflateLayout = true;
         }
 

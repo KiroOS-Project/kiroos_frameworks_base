@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: notification text on the dark cards (the light theme: values-notnight) -->
+<resources>
+    <color name="kiroos_notif_text_primary">#FFFFFFFF</color>
+    <color name="kiroos_notif_text_secondary">#FFB0B0B5</color>
+</resources>

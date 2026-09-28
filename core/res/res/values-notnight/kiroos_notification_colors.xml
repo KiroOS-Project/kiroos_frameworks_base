@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS light theme (Settings > Display > Theme: Light): notifications on white cards -->
+<resources>
+    <color name="kiroos_notif_text_primary">#FF1C1C1E</color>
+    <color name="kiroos_notif_text_secondary">#FF6C6C72</color>
+    <drawable name="notification_template_divider">#1F000000</drawable>
+    <drawable name="notification_template_divider_media">#1F000000</drawable>
+    <color name="notification_material_background_color">#FFFFFFFF</color>
+    <color name="notification_default_color">#FF6C6C72</color>
+    <color name="notification_icon_default_color">#FF3A3A3C</color>
+    <color name="notification_progress_background_color">#29000000</color>
+    <color name="notification_action_list">#FFF2F2F7</color>
+    <color name="notification_action_list_dark">#FFE9E9EF</color>
+</resources>

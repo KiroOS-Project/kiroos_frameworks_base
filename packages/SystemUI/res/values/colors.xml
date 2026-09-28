@@ -162,4 +162,8 @@
     <color name="ksh_key_item_color">@color/material_grey_600</color>
     <color name="ksh_key_item_background">@color/material_grey_100</color>
 
+    <!-- KiroOS: the quick settings panel and its detail views (the light theme: values-notnight) -->
+    <color name="kiroos_panel_bg">#FF000000</color>
+    <!-- the dim behind the pulled-down shade (alpha from ScrimController) -->
+    <color name="kiroos_shade_scrim">#FF000000</color>
 </resources>

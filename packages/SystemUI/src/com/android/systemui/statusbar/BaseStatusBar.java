@@ -215,6 +215,8 @@ public abstract class BaseStatusBar extends SystemUI implements
 
     private Locale mLocale;
     private float mFontScale;
+    /** KiroOS: the night bit of uiMode when the notifications were built */
+    private int mNight = -1;
 
     protected boolean mUseHeadsUp = false;
     protected boolean mHeadsUpTicker = false;
@@ -955,10 +957,13 @@ public abstract class BaseStatusBar extends SystemUI implements
         final int ld = TextUtils.getLayoutDirectionFromLocale(locale);
         final float fontScale = newConfig.fontScale;
         final int density = newConfig.densityDpi;
-        if (density != mDensity || mFontScale != fontScale) {
+        // KiroOS: a theme change (Dark / Light) rebuilds the notifications like a density change
+        final int night = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (density != mDensity || mFontScale != fontScale || night != mNight) {
             onDensityOrFontScaleChanged();
             mDensity = density;
             mFontScale = fontScale;
+            mNight = night;
         }
         if (! locale.equals(mLocale) || ld != mLayoutDirection) {
             if (DEBUG) {

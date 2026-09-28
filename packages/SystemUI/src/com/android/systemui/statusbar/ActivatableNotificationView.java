@@ -90,9 +90,9 @@ public abstract class ActivatableNotificationView extends ExpandableOutlineView 
             = new PathInterpolator(0.6f, 0, 0.5f, 1);
     private static final Interpolator ACTIVATE_INVERSE_ALPHA_INTERPOLATOR
             = new PathInterpolator(0, 0, 0.5f, 1);
-    private final int mTintedRippleColor;
-    private final int mLowPriorityRippleColor;
-    protected final int mNormalRippleColor;
+    private int mTintedRippleColor;
+    private int mLowPriorityRippleColor;
+    protected int mNormalRippleColor;
 
     private boolean mDimmed;
     private boolean mDark;
@@ -132,9 +132,9 @@ public abstract class ActivatableNotificationView extends ExpandableOutlineView 
     private float mAppearAnimationFraction = -1.0f;
     private float mAppearAnimationTranslation;
     private boolean mShowingLegacyBackground;
-    private final int mLegacyColor;
-    private final int mNormalColor;
-    private final int mLowPriorityColor;
+    private int mLegacyColor;
+    private int mNormalColor;
+    private int mLowPriorityColor;
     private boolean mIsBelowSpeedBump;
     private FalsingManager mFalsingManager;
     private boolean mTrackTouch;
@@ -180,6 +180,11 @@ public abstract class ActivatableNotificationView extends ExpandableOutlineView 
         mSlowOutLinearInInterpolator = new PathInterpolator(0.8f, 0.0f, 1.0f, 1.0f);
         setClipChildren(false);
         setClipToPadding(false);
+        readColors(context);
+        mFalsingManager = FalsingManager.getInstance(context);
+    }
+
+    private void readColors(Context context) {
         mLegacyColor = context.getColor(R.color.notification_legacy_background_color);
         mNormalColor = context.getColor(R.color.notification_material_background_color);
         mLowPriorityColor = context.getColor(
@@ -190,7 +195,15 @@ public abstract class ActivatableNotificationView extends ExpandableOutlineView 
                 R.color.notification_ripple_color_low_priority);
         mNormalRippleColor = context.getColor(
                 R.color.notification_ripple_untinted_color);
-        mFalsingManager = FalsingManager.getInstance(context);
+    }
+
+    /** KiroOS: the theme changed (Dark / Light): the card takes its new colours */
+    public void updateColors() {
+        readColors(mContext);
+        mBackgroundNormal.setCustomBackground(R.drawable.notification_material_bg);
+        mBackgroundDimmed.setCustomBackground(R.drawable.notification_material_bg_dim);
+        updateBackground();
+        updateBackgroundTint();
     }
 
     @Override

@@ -358,7 +358,17 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener,
             float alpha2 = getDozeAlpha(scrim);
             float alpha = 1 - (1 - alpha1) * (1 - alpha2);
             alpha = Math.max(0, Math.min(1.0f, alpha));
-            ((ScrimView) scrim).setScrimColor(Color.argb((int) (alpha * 255), 0, 0, 0));
+            // KiroOS: in the light theme the shade (unlocked) dims towards light grey; the lock
+            // screen and the always-on display stay black
+            int base = Color.BLACK;
+            if (scrim == mScrimBehind && !mKeyguardShowing && !mDozing
+                    && (scrim.getResources().getConfiguration().uiMode
+                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                    == android.content.res.Configuration.UI_MODE_NIGHT_NO) {
+                base = scrim.getContext().getColor(R.color.kiroos_shade_scrim);
+            }
+            ((ScrimView) scrim).setScrimColor(Color.argb((int) (alpha * 255),
+                    Color.red(base), Color.green(base), Color.blue(base)));
         } else {
             scrim.setAlpha(alpha1);
         }
