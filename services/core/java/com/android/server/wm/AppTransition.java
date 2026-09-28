@@ -829,11 +829,99 @@ public class AppTransition implements Dump {
     }
 
     /** how long a closing app takes to shrink into its icon */
-    private static final int KIRO_CLOSE_DURATION = 340;
+    private static final int KIRO_CLOSE_DURATION = 360;
+    /** where each app's icon sits on the home, published by Kiro Home (kiroos_home_icons) */
+    private volatile android.util.ArrayMap<String, Rect> mKiroHomeIcons;
+    private boolean mKiroHomeIconsObserved;
+
+    /** starts following the icon positions Kiro Home publishes (off the window manager lock) */
+    private void kiroObserveHomeIcons() {
+        if (mKiroHomeIconsObserved) {
+            return;
+        }
+        mKiroHomeIconsObserved = true;
+        final android.os.Handler bg = com.android.internal.os.BackgroundThread.getHandler();
+        bg.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    mContext.getContentResolver().registerContentObserver(
+                            android.provider.Settings.Global.getUriFor("kiroos_home_icons"),
+                            false, new android.database.ContentObserver(bg) {
+                                @Override
+                                public void onChange(boolean selfChange) {
+                                    kiroLoadHomeIcons();
+                                }
+                            }, android.os.UserHandle.USER_ALL);
+                    kiroLoadHomeIcons();
+                } catch (RuntimeException e) {
+                    Slog.w(TAG, "kiroos_home_icons not followed", e);
+                }
+            }
+        });
+    }
+
+    private void kiroLoadHomeIcons() {
+        final String s = android.provider.Settings.Global.getString(
+                mContext.getContentResolver(), "kiroos_home_icons");
+        final android.util.ArrayMap<String, Rect> icons = new android.util.ArrayMap<>();
+        if (s != null) {
+            for (String entry : s.split(";")) {
+                final int colon = entry.lastIndexOf(':');
+                if (colon <= 0) {
+                    continue;
+                }
+                final String[] v = entry.substring(colon + 1).split(",");
+                if (v.length != 4) {
+                    continue;
+                }
+                try {
+                    final String pkg = entry.substring(0, colon);
+                    if (!icons.containsKey(pkg)) {
+                        icons.put(pkg, new Rect(Integer.parseInt(v[0]), Integer.parseInt(v[1]),
+                                Integer.parseInt(v[2]), Integer.parseInt(v[3])));
+                    }
+                } catch (NumberFormatException e) {
+                    // skip it
+                }
+            }
+        }
+        mKiroHomeIcons = icons;
+    }
+
+    /**
+     * The icon a closing task goes back into: its app's icon on the home when Kiro Home shows
+     * it, else the icon it was opened from.
+     */
+    private Rect kiroIconFor(AppWindowToken t) {
+        if (t == null || t.mTask == null) {
+            return null;
+        }
+        final android.util.ArrayMap<String, Rect> icons = mKiroHomeIcons;
+        final WindowState w = t.findMainWindow();
+        if (icons != null && w != null) {
+            final Rect r = icons.get(w.mAttrs.packageName);
+            if (r != null && !r.isEmpty()) {
+                return r;
+            }
+        }
+        return mKiroIconRects.get(t.mTask.mTaskId);
+    }
+
+    private AppWindowToken kiroClosingToken(int taskId) {
+        for (int i = mService.mClosingApps.size() - 1; i >= 0; i--) {
+            final AppWindowToken t = mService.mClosingApps.valueAt(i);
+            if (t != null && t.mTask != null && t.mTask.mTaskId == taskId) {
+                return t;
+            }
+        }
+        return null;
+    }
     /** the icon each task was opened from (screen coordinates), for the way back */
     private final SparseArray<Rect> mKiroIconRects = new SparseArray<>();
 
     private void kiroRememberIcon(boolean enter, int taskId) {
+        kiroObserveHomeIcons();
         if (!enter || taskId < 0 || mDefaultNextAppTransitionAnimationSpec == null
                 || mDefaultNextAppTransitionAnimationSpec.rect == null
                 || mDefaultNextAppTransitionAnimationSpec.rect.isEmpty()) {
@@ -875,12 +963,10 @@ public class AppTransition implements Dump {
      * not move) and fades in over the first half. Null when no closing app has an icon.
      */
     private Animation createKiroHomeReturn(Rect frame) {
+        kiroObserveHomeIcons();
         Rect icon = null;
         for (int i = mService.mClosingApps.size() - 1; i >= 0 && icon == null; i--) {
-            final AppWindowToken t = mService.mClosingApps.valueAt(i);
-            if (t != null && t.mTask != null) {
-                icon = mKiroIconRects.get(t.mTask.mTaskId);
-            }
+            icon = kiroIconFor(mService.mClosingApps.valueAt(i));
         }
         final int w = frame.width();
         final int h = frame.height();
@@ -910,7 +996,9 @@ public class AppTransition implements Dump {
      * the task was not opened from an icon: the stock close animation plays.
      */
     private Animation createKiroCloseToIcon(int taskId, Rect frame) {
-        final Rect r = mKiroIconRects.get(taskId);
+        kiroObserveHomeIcons();
+        final AppWindowToken closing = kiroClosingToken(taskId);
+        final Rect r = closing != null ? kiroIconFor(closing) : mKiroIconRects.get(taskId);
         final int w = frame.width();
         final int h = frame.height();
         if (r == null || w <= 0 || h <= 0) {
@@ -923,8 +1011,9 @@ public class AppTransition implements Dump {
         addKiroIconMorph(set, icon, w, h, s, false);
         final Animation fade = new AlphaAnimation(1f, 0f);
         fade.setInterpolator(mLinearOutSlowInInterpolator);
-        fade.setStartOffset(KIRO_CLOSE_DURATION * 55 / 100);
-        fade.setDuration(KIRO_CLOSE_DURATION * 45 / 100);
+        // the app follows its way down to the icon and only melts into it on arrival
+        fade.setStartOffset(KIRO_CLOSE_DURATION * 78 / 100);
+        fade.setDuration(KIRO_CLOSE_DURATION * 22 / 100);
         set.addAnimation(fade);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);

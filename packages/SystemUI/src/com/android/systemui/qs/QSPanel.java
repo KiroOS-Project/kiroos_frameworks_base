@@ -342,10 +342,17 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
         }
     }
 
-    protected void drawTile(TileRecord r, QSTile.State state) {
+    protected void drawTile(final TileRecord r, final QSTile.State state) {
         r.tileView.onStateChanged(state);
-        if (mConnRow != null) {
-            mConnRow.update(r, state);
+        if (mConnRow != null && mConnRow.owns(r)) {
+            // tiles report their state on the QS background thread: the wide tile is updated
+            // on the main thread (like QSTileBaseView does with its handler)
+            mConnRow.post(new Runnable() {
+                @Override
+                public void run() {
+                    mConnRow.update(r, state);
+                }
+            });
         }
     }
 
