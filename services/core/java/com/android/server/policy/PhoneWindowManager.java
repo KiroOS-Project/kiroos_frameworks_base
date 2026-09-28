@@ -1683,11 +1683,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
 
+    /** kAI's card over the current app, listening (KaiOverlayActivity) */
     private void launchKai() {
         final Intent intent = new Intent(Intent.ACTION_MAIN)
-                .setClassName("com.kiroos.kai", "com.kiroos.kai.KaiActivity")
+                .setClassName("com.kiroos.kai", "com.kiroos.kai.KaiOverlayActivity")
                 .putExtra("from_power_key", true)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivityAsUser(intent, UserHandle.CURRENT_OR_SELF);
         } catch (Exception e) {
