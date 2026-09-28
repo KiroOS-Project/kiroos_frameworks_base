@@ -66,6 +66,8 @@ public class KiroGuardian extends SystemUI {
     private static final String TAG = "KiroGuardian";
     private static final String PROP_THERMAL = "sys.kiroos.guard.thermal";
     private static final String PROP_CHARGE = "sys.kiroos.guard.charge";
+    /** 1 screen on, 0 off: kiroos_perf.sh lifts the clock floors while the screen is off */
+    private static final String PROP_SCREEN = "sys.kiroos.guard.screen";
     static final String KEY_CHARGE_LIMIT = "kiroos_charge_limit";
     static final String KEY_BYPASS = "kiroos_bypass_charging";
     private static final int NOTIFICATION_ID = 0x4b47; // "KG"
@@ -92,6 +94,15 @@ public class KiroGuardian extends SystemUI {
                 update();
             }
         }, new IntentFilter(Intent.ACTION_BATTERY_CHANGED), null, mHandler);
+        final IntentFilter screen = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        screen.addAction(Intent.ACTION_SCREEN_OFF);
+        mContext.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                SystemProperties.set(PROP_SCREEN,
+                        Intent.ACTION_SCREEN_ON.equals(intent.getAction()) ? "1" : "0");
+            }
+        }, screen, null, mHandler);
         final ContentObserver settings = new ContentObserver(mHandler) {
             @Override
             public void onChange(boolean selfChange) {
