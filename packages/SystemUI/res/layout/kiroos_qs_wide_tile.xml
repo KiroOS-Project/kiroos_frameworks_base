@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS control centre: a wide tile (Wi-Fi / Bluetooth), see KiroConnectivityRow -->
+<view xmlns:android="http://schemas.android.com/apk/res/android"
+    class="com.android.systemui.qs.KiroConnectivityRow$WideTile"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/kiroos_qs_wide_height"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingEnd="4dp"
+    android:paddingStart="14dp"
+    android:visibility="gone">
+
+    <ImageView
+        android:id="@+id/kiroos_wide_icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:importantForAccessibility="no"
+        android:padding="9dp"
+        android:scaleType="fitCenter" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="11dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/kiroos_wide_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:singleLine="true"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/kiroos_wide_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textSize="12.5sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/kiroos_wide_chevron"
+        android:layout_width="36dp"
+        android:layout_height="48dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/quick_settings_more_settings"
+        android:scaleType="center"
+        android:src="@drawable/kiroos_ic_chevron" />
+</view>

@@ -16,9 +16,12 @@
 
 package com.android.systemui.qs;
 
+import android.animation.ArgbEvaluator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
@@ -29,6 +32,8 @@ import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.OvershootInterpolator;
+import android.view.animation.PathInterpolator;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
 import com.android.systemui.R;
@@ -42,27 +47,23 @@ public class QSIconView extends ViewGroup {
     protected final int mTilePaddingBelowIconPx;
     private boolean mAnimationEnabled = true;
 
-    // KiroOS: round tile background behind the icon (white when on, #181818 when off)
+    // KiroOS: round tile background behind the icon: KiroOS blue when on, a dark disc when off
+    // (white in the light theme); the colour fades between the two and the icon pops when a
+    // tile turns on
+    private static final PathInterpolator EASE = new PathInterpolator(0.2f, 0.9f, 0.1f, 1f);
     private final Paint mBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int mBgRadiusPx;
     private final int mBgColorActive;
     private final int mBgColorInactive;
     private final int mBgColorPressed;
+    private int mBgColor;
+    private ValueAnimator mBgAnim;
     private boolean mActive;
     private boolean mBgPressed;
+    private boolean mHasState;
     protected ColorFilter mIconFilter;
-    private static final ColorFilter ACTIVE_FILTER =
-            new PorterDuffColorFilter(0xFF000000, PorterDuff.Mode.SRC_IN);
-    private static final ColorFilter INACTIVE_FILTER;
-    static {
-        // #B0B0B5, with the dimmed "off" icons brought back to a readable alpha
-        ColorMatrix m = new ColorMatrix(new float[] {
-                0, 0, 0, 0, 0xB0,
-                0, 0, 0, 0, 0xB0,
-                0, 0, 0, 0, 0xB5,
-                0, 0, 0, 2.5f, 0 });
-        INACTIVE_FILTER = new ColorMatrixColorFilter(m);
-    }
+    private final ColorFilter mActiveFilter;
+    private final ColorFilter mInactiveFilter;
 
     public QSIconView(Context context) {
         super(context);
@@ -75,6 +76,16 @@ public class QSIconView extends ViewGroup {
         mBgColorActive = context.getColor(R.color.qs_tile_bg_active);
         mBgColorInactive = context.getColor(R.color.qs_tile_bg_inactive);
         mBgColorPressed = context.getColor(R.color.qs_tile_bg_pressed);
+        mBgColor = mBgColorInactive;
+        mActiveFilter = new PorterDuffColorFilter(context.getColor(R.color.qs_tile_tint_active),
+                PorterDuff.Mode.SRC_IN);
+        // the "off" tint, with the dimmed "off" icons brought back to a readable alpha
+        final int off = context.getColor(R.color.qs_tile_tint_inactive);
+        mInactiveFilter = new ColorMatrixColorFilter(new ColorMatrix(new float[] {
+                0, 0, 0, 0, Color.red(off),
+                0, 0, 0, 0, Color.green(off),
+                0, 0, 0, 0, Color.blue(off),
+                0, 0, 0, 2.5f, 0 }));
         setWillNotDraw(false);
 
         mIcon = createIcon();
@@ -89,6 +100,14 @@ public class QSIconView extends ViewGroup {
         if (mBgPressed != pressed) {
             mBgPressed = pressed;
             invalidate();
+            // a soft press: the disc dips while held and springs back
+            animate().cancel();
+            if (pressed) {
+                animate().scaleX(0.9f).scaleY(0.9f).setDuration(90).setInterpolator(EASE).start();
+            } else {
+                animate().scaleX(1f).scaleY(1f).setDuration(280)
+                        .setInterpolator(new OvershootInterpolator(1.8f)).start();
+            }
         }
     }
 
@@ -96,7 +115,7 @@ public class QSIconView extends ViewGroup {
     protected void onDraw(Canvas canvas) {
         final float cx = mIcon.getLeft() + mIcon.getWidth() / 2f;
         final float cy = mIcon.getTop() + mIconSizePx / 2f;
-        mBgPaint.setColor(mActive ? mBgColorActive : mBgColorInactive);
+        mBgPaint.setColor(mBgColor);
         canvas.drawCircle(cx, cy, mBgRadiusPx, mBgPaint);
         if (mBgPressed) {
             mBgPaint.setColor(mBgColorPressed);
@@ -169,17 +188,49 @@ public class QSIconView extends ViewGroup {
                     getContext().getColor(R.color.qs_tile_disabled_color), PorterDuff.Mode.SRC_ATOP);
         } else if (state instanceof QSTile.BooleanState) {
             active = ((QSTile.BooleanState) state).value;
-            mIconFilter = active ? ACTIVE_FILTER : INACTIVE_FILTER;
+            mIconFilter = active ? mActiveFilter : mInactiveFilter;
         } else {
             // Tiles without an on/off state (battery, profiles...) keep their own colors
             active = false;
             mIconFilter = null;
         }
         applyIconFilter(iv);
-        if (mActive != active) {
+        if (mActive != active || !mHasState) {
+            final boolean animate = mHasState && isShown();
             mActive = active;
-            invalidate();
+            setBgColor(active ? mBgColorActive : mBgColorInactive, animate);
+            if (animate && active) {
+                // turning on: the icon pops in
+                iv.setScaleX(0.78f);
+                iv.setScaleY(0.78f);
+                iv.animate().scaleX(1f).scaleY(1f).setDuration(340)
+                        .setInterpolator(new OvershootInterpolator(2.4f)).start();
+            }
         }
+        mHasState = true;
+    }
+
+    private void setBgColor(int target, boolean animate) {
+        if (mBgAnim != null) {
+            mBgAnim.cancel();
+            mBgAnim = null;
+        }
+        if (!animate || mBgColor == target) {
+            mBgColor = target;
+            invalidate();
+            return;
+        }
+        mBgAnim = ValueAnimator.ofObject(new ArgbEvaluator(), mBgColor, target);
+        mBgAnim.setDuration(240);
+        mBgAnim.setInterpolator(EASE);
+        mBgAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator a) {
+                mBgColor = (int) a.getAnimatedValue();
+                invalidate();
+            }
+        });
+        mBgAnim.start();
     }
 
     protected int getIconMeasureMode() {

@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- KiroOS: brightness slider track (#181818) with a white fill -->
+<!-- KiroOS 2.1: the brightness bar is one pill, filled from the left (follows the theme) -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@android:id/background">
         <shape>
-            <corners android:radius="4dp" />
-            <size android:height="8dp" />
-            <solid android:color="#FF181818" />
+            <corners android:radius="26dp" />
+            <size android:height="52dp" />
+            <solid android:color="@color/kiroos_bright_track" />
         </shape>
     </item>
     <item android:id="@android:id/progress">
-        <scale android:scaleWidth="100%">
+        <scale android:scaleWidth="100%" android:scaleGravity="left">
             <shape>
-                <corners android:radius="4dp" />
-                <size android:height="8dp" />
-                <solid android:color="#FFFFFFFF" />
+                <corners android:radius="26dp" />
+                <size android:height="52dp" />
+                <solid android:color="@color/kiroos_bright_fill" />
             </shape>
         </scale>
     </item>

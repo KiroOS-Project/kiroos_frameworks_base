@@ -178,6 +178,8 @@ public class QSDetailItems extends FrameLayout {
                         false);
             }
             view.setVisibility(mItemsVisible ? VISIBLE : INVISIBLE);
+            // KiroOS: the connected network / device stands out
+            view.setActivated(item.canDisconnect);
             final ImageView iv = (ImageView) view.findViewById(android.R.id.icon);
             iv.setImageResource(item.icon);
             iv.getOverlay().clear();

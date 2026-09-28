@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS 2.1 control centre (dark theme values; the light twins: values-notnight) -->
+<resources>
+    <dimen name="kiroos_qs_side_padding">16dp</dimen>
+    <dimen name="kiroos_qs_row_gap">10dp</dimen>
+    <dimen name="kiroos_qs_wide_radius">24dp</dimen>
+    <dimen name="kiroos_qs_wide_height">72dp</dimen>
+    <dimen name="kiroos_qs_detail_item_height">72dp</dimen>
+
+    <color name="kiroos_qs_wide_icon_bg">#FF2C2C2E</color>
+    <color name="kiroos_qs_header_btn">#FF1C1C1E</color>
+    <color name="kiroos_qs_accent_text">#FF6FA8F0</color>
+    <color name="kiroos_bright_track">#FF1C1C1E</color>
+    <color name="kiroos_bright_fill">#FFE9E9EE</color>
+    <color name="kiroos_bright_icon">#FF6B6B73</color>
+    <color name="kiroos_detail_row">#FF1C1C1E</color>
+    <color name="kiroos_detail_row_active">#FF1D3252</color>
+    <color name="kiroos_detail_row_stroke">#803987E5</color>
+    <color name="kiroos_detail_icon_bg">#FF2C2C2E</color>
+</resources>

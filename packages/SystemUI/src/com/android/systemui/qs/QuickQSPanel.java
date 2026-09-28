@@ -95,6 +95,12 @@ public class QuickQSPanel extends QSPanel {
     }
 
     @Override
+    protected boolean hasConnectivityRow() {
+        // the header keeps Wi-Fi and Bluetooth as round quick tiles
+        return false;
+    }
+
+    @Override
     protected QSTileBaseView createTileView(QSTile<?> tile, boolean collapsedView) {
         return new QSTileBaseView(mContext, tile.createTileView(mContext), collapsedView);
     }

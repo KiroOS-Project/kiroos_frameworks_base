@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- KiroOS: round #181818 button in the control center header -->
+<!-- KiroOS: round button in the control centre header (follows the theme) -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
-        android:color="#33FFFFFF">
+        android:color="@color/qs_tile_bg_pressed">
     <item>
         <inset android:inset="4dp">
             <shape android:shape="oval">
-                <solid android:color="#FF181818" />
+                <solid android:color="@color/kiroos_qs_header_btn" />
             </shape>
         </inset>
     </item>

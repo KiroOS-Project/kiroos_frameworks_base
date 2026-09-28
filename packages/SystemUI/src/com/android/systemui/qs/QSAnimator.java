@@ -161,7 +161,16 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
         for (QSTile<?> tile : tiles) {
             QSTileBaseView tileView = mQsPanel.getTileView(tile);
             if (tileView == null) {
-                Log.e(TAG, "tileView is null " + tile.getTileSpec());
+                // KiroOS: Wi-Fi and Bluetooth are the wide tiles above the brightness bar: their
+                // quick tiles fade out instead of flying into the grid
+                if (count < mNumQuickTiles && mAllowFancy) {
+                    final QSTileBaseView quick = mQuickQsPanel.getTileView(tile);
+                    if (quick != null) {
+                        firstPageBuilder.addFloat(quick, "alpha", 1, 0);
+                        mAllViews.add(quick);
+                    }
+                }
+                count++;
                 continue;
             }
             final TextView label = ((QSTileView) tileView).getLabel();
@@ -216,6 +225,13 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
             count++;
         }
         if (mAllowFancy) {
+            // KiroOS: the wide Wi-Fi / Bluetooth tiles rise with the panel and fade in
+            final View conn = mQsPanel.getConnectivityRow();
+            if (conn != null) {
+                firstPageBuilder.addFloat(conn, "translationY", mQsPanel.getHeight(), 0);
+                firstPageBuilder.addFloat(conn, "alpha", 0, 1);
+                mAllViews.add(conn);
+            }
             // Make brightness appear static position and alpha in through second half.
             View brightness = mQsPanel.getBrightnessView();
             if (brightness != null) {

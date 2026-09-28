@@ -82,6 +82,8 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
 
     private BrightnessMirrorController mBrightnessMirrorController;
     private ImageView mMirrorAutoBrightnessView;
+    /** KiroOS: Wi-Fi and Bluetooth as wide tiles above the brightness bar (full panel only) */
+    private KiroConnectivityRow mConnRow;
 
     public QSPanel(Context context) {
         this(context, null);
@@ -97,6 +99,11 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
                 R.layout.quick_settings_brightness_dialog, this, false);
         addView(mBrightnessView);
 
+        if (hasConnectivityRow()) {
+            mConnRow = new KiroConnectivityRow(context);
+            addView(mConnRow, 0);
+        }
+
         setupTileLayout();
 
         mFooter = new QSFooter(this, context);
@@ -109,6 +116,15 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
                 (ToggleSlider) findViewById(R.id.brightness_slider));
 
         mAutoBrightnessView = (ImageView) findViewById(R.id.brightness_icon);
+    }
+
+    /** KiroOS: the full panel shows Wi-Fi and Bluetooth as wide tiles; the header does not */
+    protected boolean hasConnectivityRow() {
+        return true;
+    }
+
+    View getConnectivityRow() {
+        return mConnRow;
     }
 
     protected void setupTileLayout() {
@@ -313,6 +329,9 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
     }
 
     public void setTiles(Collection<QSTile<?>> tiles, boolean collapsedView) {
+        if (mConnRow != null) {
+            mConnRow.unbindAll();
+        }
         for (TileRecord record : mRecords) {
             mTileLayout.removeTile(record);
             record.tile.removeCallback(record.callback);
@@ -325,6 +344,9 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
 
     protected void drawTile(TileRecord r, QSTile.State state) {
         r.tileView.onStateChanged(state);
+        if (mConnRow != null) {
+            mConnRow.update(r, state);
+        }
     }
 
     protected QSTileBaseView createTileView(QSTile<?> tile, boolean collapsedView) {
@@ -393,8 +415,15 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
             }
         };
         r.tileView.init(click, longClick);
-        r.tile.refreshState();
         mRecords.add(r);
+        if (mConnRow != null && !collapsedView
+                && KiroConnectivityRow.accepts(tile.getTileSpec())) {
+            // KiroOS: drawn as a wide tile above the brightness bar, not in the grid
+            mConnRow.bind(r, this);
+            r.tile.refreshState();
+            return;
+        }
+        r.tile.refreshState();
 
         if (mTileLayout != null) {
             mTileLayout.addTile(r);
@@ -459,9 +488,18 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
             if (r.detailAdapter == null) return;
         }
         r.tile.setDetailListening(show);
-        int x = r.tileView.getLeft() + r.tileView.getWidth() / 2;
-        int y = r.tileView.getTop() + mTileLayout.getOffsetTop(r) + r.tileView.getHeight() / 2
-                + getTop();
+        int x;
+        int y;
+        if (mConnRow != null && mConnRow.owns(r)) {
+            // the list opens from the wide tile
+            final View w = mConnRow.tileFor(r.tile.getTileSpec());
+            x = mConnRow.getLeft() + w.getLeft() + w.getWidth() / 2;
+            y = getTop() + mConnRow.getTop() + w.getTop() + w.getHeight() / 2;
+        } else {
+            x = r.tileView.getLeft() + r.tileView.getWidth() / 2;
+            y = r.tileView.getTop() + mTileLayout.getOffsetTop(r) + r.tileView.getHeight() / 2
+                    + getTop();
+        }
         handleShowDetailImpl(r, show, x, y);
     }
 
@@ -530,7 +568,8 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
     QSTileBaseView getTileView(QSTile<?> tile) {
         for (TileRecord r : mRecords) {
             if (r.tile == tile) {
-                return r.tileView;
+                // KiroOS: the wide tiles have no grid view
+                return mConnRow != null && mConnRow.owns(r) ? null : r.tileView;
             }
         }
         return null;

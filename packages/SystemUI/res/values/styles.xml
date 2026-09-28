@@ -85,19 +85,19 @@
     <style name="TextAppearance.StatusBar.Expanded.Clock">
         <item name="android:textSize">@dimen/qs_time_expanded_size</item>
         <item name="android:fontFamily">sans-serif-medium</item>
-        <item name="android:textColor">#ffffff</item>
+        <item name="android:textColor">@color/qs_text</item>
     </style>
 
     <style name="TextAppearance.StatusBar.Expanded.Date">
         <item name="android:textSize">@dimen/qs_date_collapsed_size</item>
         <item name="android:textStyle">normal</item>
-        <item name="android:textColor">#FFB0B0B5</item>
+        <item name="android:textColor">@color/qs_subhead</item>
     </style>
 
     <style name="TextAppearance.StatusBar.Expanded.AboveDateTime">
         <item name="android:textSize">@dimen/qs_emergency_calls_only_text_size</item>
         <item name="android:textStyle">normal</item>
-        <item name="android:textColor">#FFB0B0B5</item>
+        <item name="android:textColor">@color/qs_subhead</item>
     </style>
 
     <style name="TextAppearance.StatusBar.Expanded.EmergencyCallsOnly"
@@ -124,17 +124,17 @@
     <style name="TextAppearance.QS.DetailHeader">
         <item name="android:textSize">@dimen/qs_detail_header_text_size</item>
         <item name="android:fontFamily">sans-serif-medium</item>
-        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textColor">@color/qs_text</item>
     </style>
 
     <style name="TextAppearance.QS.DetailItemPrimary">
         <item name="android:textSize">@dimen/qs_detail_item_primary_text_size</item>
-        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textColor">@color/qs_text</item>
     </style>
 
     <style name="TextAppearance.QS.DetailItemSecondary">
         <item name="android:textSize">@dimen/qs_detail_item_secondary_text_size</item>
-        <item name="android:textColor">#FFB0B0B5</item>
+        <item name="android:textColor">@color/qs_subhead</item>
     </style>
 
     <style name="TextAppearance.QS.Introduction">
@@ -148,7 +148,7 @@
 
     <style name="TextAppearance.QS.DetailButton">
         <item name="android:textSize">@dimen/qs_detail_button_text_size</item>
-        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textColor">@color/kiroos_qs_accent_text</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:gravity">center</item>
@@ -160,12 +160,12 @@
 
     <style name="TextAppearance.QS.DetailEmpty">
         <item name="android:textSize">@dimen/qs_detail_empty_text_size</item>
-        <item name="android:textColor">#FFB0B0B5</item>
+        <item name="android:textColor">@color/qs_subhead</item>
     </style>
 
     <style name="TextAppearance.QS.Subhead">
         <item name="android:textSize">14sp</item>
-        <item name="android:textColor">#FFB0B0B5</item>
+        <item name="android:textColor">@color/qs_subhead</item>
     </style>
 
     <style name="TextAppearance.QS.SegmentedButton">
@@ -189,7 +189,7 @@
     <style name="TextAppearance.QS.TileLabel">
         <item name="android:textSize">@dimen/qs_tile_text_size</item>
         <item name="android:fontFamily">sans-serif-condensed</item>
-        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textColor">@color/qs_text</item>
     </style>
 
     <style name="BaseBrightnessDialogContainer">
