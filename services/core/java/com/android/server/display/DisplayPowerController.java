@@ -39,8 +39,6 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.util.MathUtils;
-import android.os.UserHandle;
-import android.provider.Settings;
 import android.util.Slog;
 import android.util.Spline;
 import android.util.TimeUtils;
@@ -759,9 +757,6 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
             mAppliedLowPower = false;
         }
 
-        // KiroOS DC dimming: low brightness through the picture, not the panel
-        brightness = applyKiroDcDimming(brightness, state);
-
         // Animate the screen brightness when the screen is on or dozing.
         // Skip the animation when the screen is off or suspended or transition to/from VR.
         if (!mPendingScreenOff) {
@@ -891,40 +886,6 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
     private int clampScreenBrightness(int value) {
         return MathUtils.constrain(
                 value, mScreenBrightnessRangeMinimum, mScreenBrightnessRangeMaximum);
-    }
-
-    /**
-     * KiroOS DC dimming (Settings > Display, Settings.System kiroos_dc_dimming). AMOLED panels
-     * flicker (PWM) at low brightness: below KIRO_DC_FLOOR the panel stays at the floor and the
-     * picture is scaled by a color matrix so it looks as dark as asked. The matrix works on
-     * gamma-encoded values, so a luminance ratio r needs a scale of r^(1/2.2).
-     */
-    private static final int KIRO_DC_FLOOR = 90;
-    private float mKiroDcScale = 1f;
-
-    private int applyKiroDcDimming(int brightness, int state) {
-        float scale = 1f;
-        if (state == Display.STATE_ON && brightness > 0 && brightness < KIRO_DC_FLOOR
-                && Settings.System.getIntForUser(mContext.getContentResolver(),
-                        "kiroos_dc_dimming", 0, UserHandle.USER_CURRENT) != 0) {
-            scale = Math.max(0.25f,
-                    (float) Math.pow(brightness / (float) KIRO_DC_FLOOR, 1 / 2.2));
-            brightness = KIRO_DC_FLOOR;
-        }
-        if (Math.abs(scale - mKiroDcScale) > 0.004f) {
-            mKiroDcScale = scale;
-            final DisplayTransformManager dtm =
-                    LocalServices.getService(DisplayTransformManager.class);
-            if (dtm != null) {
-                dtm.setColorMatrix(DisplayTransformManager.LEVEL_COLOR_MATRIX_DC_DIMMING,
-                        scale >= 1f ? null : new float[] {
-                                scale, 0, 0, 0,
-                                0, scale, 0, 0,
-                                0, 0, scale, 0,
-                                0, 0, 0, 1});
-            }
-        }
-        return brightness;
     }
 
     private void animateScreenBrightness(int target, int rate) {
