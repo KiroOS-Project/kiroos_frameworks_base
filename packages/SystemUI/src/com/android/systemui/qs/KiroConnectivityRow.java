@@ -89,10 +89,13 @@ public class KiroConnectivityRow extends LinearLayout {
         }
         t.mRecord = r;
         t.setVisibility(VISIBLE);
+        // a tap switches Wi-Fi / Bluetooth on and off (the tiles' secondary click); the arrow
+        // opens the list (their click, which also switches them on). It was the other way
+        // round: a tap on Bluetooth only ever opened the list and turned it on.
         t.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                panel.onTileClick(r.tile);
+                r.tile.secondaryClick();
             }
         });
         t.setOnLongClickListener(new OnLongClickListener() {
@@ -105,7 +108,7 @@ public class KiroConnectivityRow extends LinearLayout {
         t.mChevron.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                r.tile.secondaryClick();
+                panel.onTileClick(r.tile);
             }
         });
     }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the automatic brightness button, round and as tall as the brightness pill -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?android:attr/colorControlHighlight">
+    <item>
+        <selector>
+            <item android:state_activated="true">
+                <shape android:shape="oval">
+                    <solid android:color="@color/qs_tile_bg_active" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="@color/kiroos_bright_track" />
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

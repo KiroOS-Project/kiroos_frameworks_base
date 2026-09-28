@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: control centre Bluetooth panel and detail sheet -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="kiroos_bt_my_devices">I miei dispositivi</string>
+    <string name="kiroos_bt_nearby">Dispositivi nelle vicinanze</string>
+    <string name="kiroos_bt_not_connected">Non connesso</string>
+    <string name="kiroos_bt_pairing">Associazione…</string>
+    <string name="kiroos_bt_tap_to_pair">Tocca per associare</string>
+    <string name="kiroos_bt_searching">Ricerca…</string>
+    <string name="kiroos_bt_search_again">Cerca di nuovo</string>
+    <string name="kiroos_bt_none_nearby">Nessun dispositivo nelle vicinanze</string>
+    <string name="kiroos_bt_off_title">Bluetooth disattivato</string>
+    <string name="kiroos_bt_off_text">Attivalo per collegare cuffie, altoparlanti, smartwatch e altro.</string>
+    <string name="kiroos_bt_turn_on">Attiva Bluetooth</string>
+    <string name="kiroos_bt_no_paired">Nessun dispositivo associato</string>
+    <string name="kiroos_bt_disconnect">Disconnetti</string>
+    <string name="kiroos_bt_disconnecting">Disconnessione…</string>
+    <string name="kiroos_turning_on">Attivazione…</string>
+    <string name="kiroos_turning_off">Disattivazione…</string>
+    <string name="kiroos_detail_on">Attivo</string>
+    <string name="kiroos_detail_off">Disattivato</string>
+</resources>

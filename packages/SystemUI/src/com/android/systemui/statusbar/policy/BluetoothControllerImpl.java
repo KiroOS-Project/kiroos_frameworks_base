@@ -160,6 +160,16 @@ public class BluetoothControllerImpl implements BluetoothController, BluetoothCa
     }
 
     @Override
+    public void setScanning(boolean scanning) {
+        if (mLocalBluetoothManager == null) return;
+        if (scanning) {
+            mLocalBluetoothManager.getBluetoothAdapter().startScanning(true);
+        } else {
+            mLocalBluetoothManager.getBluetoothAdapter().stopScanning();
+        }
+    }
+
+    @Override
     public String getLastDeviceName() {
         return mLastDevice != null ? mLastDevice.getName() : null;
     }

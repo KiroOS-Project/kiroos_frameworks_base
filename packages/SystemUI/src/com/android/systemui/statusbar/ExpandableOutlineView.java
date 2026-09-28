@@ -104,9 +104,10 @@ public abstract class ExpandableOutlineView extends ExpandableView {
         }
         boolean hasOutline = true;
         if (isChildInGroup()) {
-            hasOutline = isGroupExpanded() && !isGroupExpansionChanging();
+            // KiroOS: the children lie on the group's card, which has the outline
+            hasOutline = false;
         } else if (isSummaryWithChildren()) {
-            hasOutline = !isGroupExpanded() || isGroupExpansionChanging();
+            hasOutline = true;
         }
         setOutlineProvider(hasOutline ? mProvider : null);
     }

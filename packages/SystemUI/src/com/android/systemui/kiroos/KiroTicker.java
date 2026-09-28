@@ -16,6 +16,9 @@
 
 package com.android.systemui.kiroos;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.Notification;
 import android.content.Context;
 import android.media.MediaMetadata;
@@ -27,9 +30,11 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import com.android.systemui.Interpolators;
 import com.android.systemui.R;
 
 import java.util.Objects;
@@ -38,6 +43,10 @@ import java.util.Objects;
  * Status bar ticker: a new notification or the song that starts playing scrolls smoothly
  * through the status bar for a few seconds, in place of the notification icons and the clock,
  * then the bar comes back. Settings.System kiroos_ticker (default on).
+ *
+ * The text lies on the status bar itself, over the notification icon area, and the icons and
+ * the clock step aside through their transition alpha: their plain alpha is animated by the
+ * bar transitions and by the disable flags, which brought the icons back under the text.
  */
 public class KiroTicker {
 
@@ -46,18 +55,22 @@ public class KiroTicker {
 
     private final Context mContext;
     private final Handler mHandler = new Handler();
-    private final ViewGroup mIconArea;
+    private final ViewGroup mBar;
+    private final View mIconArea;
     private final View mClock;
     private final TextView mText;
     private String mLastSong;
     private boolean mShowing;
+    /** 0 = the bar as usual, 1 = the ticker in place of the icons and the clock */
+    private float mAmount;
+    private ValueAnimator mAnimator;
 
     public KiroTicker(Context context, View statusBar) {
         mContext = context;
         // null before the status bar is inflated: then it stays off
-        mIconArea = statusBar == null ? null
-                : (ViewGroup) statusBar.findViewById(R.id.notification_icon_area);
-        mClock = statusBar == null ? null : statusBar.findViewById(R.id.clock);
+        mBar = statusBar instanceof FrameLayout ? (ViewGroup) statusBar : null;
+        mIconArea = mBar == null ? null : mBar.findViewById(R.id.notification_icon_area);
+        mClock = mBar == null ? null : mBar.findViewById(R.id.clock);
         mText = new TextView(context);
         mText.setSingleLine(true);
         mText.setEllipsize(TextUtils.TruncateAt.MARQUEE);
@@ -65,16 +78,17 @@ public class KiroTicker {
         mText.setHorizontalFadingEdgeEnabled(true);
         mText.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         mText.setTextAppearance(R.style.TextAppearance_StatusBar_Clock);
+        mText.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         mText.setAlpha(0f);
         mText.setVisibility(View.GONE);
-        if (mIconArea != null) {
-            mIconArea.addView(mText, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (mBar != null && mIconArea != null) {
+            mBar.addView(mText, new FrameLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START | Gravity.TOP));
         }
     }
 
     private boolean enabled() {
-        return mIconArea != null
+        return mBar != null && mIconArea != null
                 && Settings.System.getInt(mContext.getContentResolver(), SETTING, 1) != 0;
     }
 
@@ -113,8 +127,25 @@ public class KiroTicker {
         show("♪ " + song);
     }
 
+    /** puts the text exactly over the notification icon area (it moves with the clock setting) */
+    private void place() {
+        int left = mIconArea.getLeft() + mIconArea.getPaddingStart();
+        for (ViewParent p = mIconArea.getParent(); p instanceof View && p != mBar;
+                p = p.getParent()) {
+            left += ((View) p).getLeft();
+        }
+        final int width = Math.max(0, mIconArea.getWidth() - mIconArea.getPaddingStart());
+        final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) mText.getLayoutParams();
+        if (lp.leftMargin != left || lp.width != width) {
+            lp.leftMargin = left;
+            lp.width = width;
+            mText.setLayoutParams(lp);
+        }
+    }
+
     private void show(String text) {
         mHandler.removeCallbacks(mHide);
+        place();
         // the clock's colour: dark over apps with a light status bar, white otherwise
         if (mClock instanceof TextView) {
             mText.setTextColor(((TextView) mClock).getCurrentTextColor());
@@ -124,17 +155,7 @@ public class KiroTicker {
         mText.setSelected(true);                // starts the marquee
         if (!mShowing) {
             mShowing = true;
-            for (int i = 0; i < mIconArea.getChildCount(); i++) {
-                final View c = mIconArea.getChildAt(i);
-                if (c != mText) {
-                    c.animate().alpha(0f).setDuration(150).start();
-                }
-            }
-            if (mClock != null) {
-                mClock.animate().alpha(0f).setDuration(150).start();
-            }
-            mText.setTranslationY(mText.getHeight() * 0.4f);
-            mText.animate().alpha(1f).translationY(0f).setDuration(220).start();
+            animateTo(1f, 240);
         }
         // long texts get the time for one pass of the marquee
         final long ms = Math.max(MIN_SHOW_MS, 1600 + text.length() * 90L);
@@ -145,22 +166,54 @@ public class KiroTicker {
         @Override
         public void run() {
             mShowing = false;
-            mText.animate().alpha(0f).setDuration(200).withEndAction(new Runnable() {
-                @Override
-                public void run() {
+            animateTo(0f, 220);
+        }
+    };
+
+    private void animateTo(final float target, long duration) {
+        if (mAnimator != null) {
+            mAnimator.cancel();
+        }
+        mAnimator = ValueAnimator.ofFloat(mAmount, target);
+        mAnimator.setDuration(duration);
+        mAnimator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN);
+        mAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator a) {
+                apply((float) a.getAnimatedValue());
+            }
+        });
+        mAnimator.addListener(new AnimatorListenerAdapter() {
+            private boolean mCancelled;
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                mCancelled = true;
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (!mCancelled && target == 0f) {
                     mText.setSelected(false);
                     mText.setVisibility(View.GONE);
                 }
-            }).start();
-            for (int i = 0; i < mIconArea.getChildCount(); i++) {
-                final View c = mIconArea.getChildAt(i);
-                if (c != mText) {
-                    c.animate().alpha(1f).setDuration(220).start();
-                }
             }
-            if (mClock != null) {
-                mClock.animate().alpha(1f).setDuration(220).start();
-            }
+        });
+        mAnimator.start();
+    }
+
+    /** the icons and the clock leave upward as the text comes up from below */
+    private void apply(float amount) {
+        mAmount = amount;
+        final float h = mBar.getHeight();
+        final float out = Math.max(0f, 1f - amount * 1.6f);   // gone before the text arrives
+        final float in = Math.max(0f, amount * 1.6f - 0.6f);
+        mIconArea.setTransitionAlpha(out);
+        mIconArea.setTranslationY(-h * 0.35f * amount);
+        if (mClock != null) {
+            mClock.setTransitionAlpha(out);
         }
-    };
+        mText.setAlpha(in);
+        mText.setTranslationY(h * 0.35f * (1f - amount));
+    }
 }

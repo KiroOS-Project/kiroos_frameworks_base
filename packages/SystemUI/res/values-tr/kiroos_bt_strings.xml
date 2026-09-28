@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: control centre Bluetooth panel and detail sheet -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="kiroos_bt_my_devices">Cihazlarım</string>
+    <string name="kiroos_bt_nearby">Yakındaki cihazlar</string>
+    <string name="kiroos_bt_not_connected">Bağlı değil</string>
+    <string name="kiroos_bt_pairing">Eşleniyor…</string>
+    <string name="kiroos_bt_tap_to_pair">Eşlemek için dokunun</string>
+    <string name="kiroos_bt_searching">Aranıyor…</string>
+    <string name="kiroos_bt_search_again">Tekrar ara</string>
+    <string name="kiroos_bt_none_nearby">Yakında cihaz yok</string>
+    <string name="kiroos_bt_off_title">Bluetooth kapalı</string>
+    <string name="kiroos_bt_off_text">Kulaklık, hoparlör, saat ve daha fazlasını bağlamak için açın.</string>
+    <string name="kiroos_bt_turn_on">Bluetooth\'u aç</string>
+    <string name="kiroos_bt_no_paired">Henüz eşlenmiş cihaz yok</string>
+    <string name="kiroos_bt_disconnect">Bağlantıyı kes</string>
+    <string name="kiroos_bt_disconnecting">Bağlantı kesiliyor…</string>
+    <string name="kiroos_turning_on">Açılıyor…</string>
+    <string name="kiroos_turning_off">Kapatılıyor…</string>
+    <string name="kiroos_detail_on">Açık</string>
+    <string name="kiroos_detail_off">Kapalı</string>
+</resources>

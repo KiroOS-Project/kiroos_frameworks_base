@@ -946,11 +946,16 @@ public class ExpandableNotificationRow extends ActivatableNotificationView {
             // Don't translate if guts are showing.
             return;
         }
+        final boolean wasMoved = getTranslation() != 0f;
         // Translate the group of views
         for (int i = 0; i < mTranslateableViews.size(); i++) {
             if (mTranslateableViews.get(i) != null) {
                 mTranslateableViews.get(i).setTranslationX(translationX);
             }
+        }
+        if (isChildInGroup() && wasMoved != (translationX != 0f)) {
+            // KiroOS: a child swiped out of its group's card takes its own card with it
+            updateBackgroundForGroupState();
         }
         invalidateOutline();
         if (mSettingsIconRow != null) {
@@ -1587,21 +1592,20 @@ public class ExpandableNotificationRow extends ActivatableNotificationView {
      */
     public void updateBackgroundForGroupState() {
         if (mIsSummaryWithChildren) {
-            // Only when the group has finished expanding do we hide its background.
-            mShowNoBackground = isGroupExpanded() && !isGroupExpansionChanging() && !isUserLocked();
-            mChildrenContainer.updateHeaderForExpansion(mShowNoBackground);
+            // KiroOS: a group is one rounded card, expanded or not: the summary keeps its
+            // background under the header and all the children. The stack paints nothing
+            // behind the cards, so a group without it showed the home through its children.
+            mShowNoBackground = false;
+            mChildrenContainer.updateHeaderForExpansion(false);
             List<ExpandableNotificationRow> children = mChildrenContainer.getNotificationChildren();
             for (int i = 0; i < children.size(); i++) {
                 children.get(i).updateBackgroundForGroupState();
             }
         } else if (isChildInGroup()) {
             final int childColor = getShowingLayout().getBackgroundColorForExpansionState();
-            // Only show a background if the group is expanded OR if it is expanding / collapsing
-            // and has a custom background color
-            final boolean showBackground = isGroupExpanded()
-                    || ((mNotificationParent.isGroupExpansionChanging()
-                            || mNotificationParent.isUserLocked()) && childColor != 0);
-            mShowNoBackground = !showBackground;
+            // KiroOS: a child lies on the group's card; it shows its own card only with a
+            // colour of its own, or while it is swiped away on its own
+            mShowNoBackground = childColor == 0 && getTranslation() == 0f;
         } else {
             // Only children or parents ever need no background.
             mShowNoBackground = false;

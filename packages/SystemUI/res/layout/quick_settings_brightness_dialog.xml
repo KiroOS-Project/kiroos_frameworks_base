@@ -31,14 +31,18 @@
         android:importantForAccessibility="no"
         systemui:text="@string/status_bar_settings_auto_brightness_label" />
 
+    <!-- KiroOS: automatic brightness, a round button as tall as the pill (accent when on) -->
     <ImageView
         android:id="@+id/brightness_icon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="10dp"
         android:layout_gravity="center_vertical"
+        android:background="@drawable/kiroos_bright_auto_bg"
+        android:scaleType="center"
         android:src="@drawable/ic_qs_brightness_auto_off"
-        android:tint="@color/qs_text"
-        android:contentDescription="@null"
+        android:tint="@color/kiroos_bright_auto_tint"
+        android:contentDescription="@string/status_bar_settings_auto_brightness_label"
         android:visibility="gone" />
 
 </LinearLayout>

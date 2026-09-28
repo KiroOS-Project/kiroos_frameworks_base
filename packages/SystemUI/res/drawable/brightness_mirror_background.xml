@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- KiroOS: the bar shown alone while the brightness is dragged (follows the theme) -->
+<!-- KiroOS: nothing behind the pill while the brightness is dragged: the pill and its round
+     button are opaque on their own, and a panel-coloured frame larger than them stuck out
+     at both ends -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/kiroos_panel_bg" />
-    <corners android:radius="30dp" />
+    <solid android:color="@android:color/transparent" />
 </shape>

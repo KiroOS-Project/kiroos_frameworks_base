@@ -878,6 +878,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_TOGGLE_TORCH = 22;
     private static final int MSG_BACK_DELAYED_PRESS = 23;
     private static final int MSG_KIRO_POWER_MENU = 24;
+    private static final int MSG_KIRO_POWER_CHORD = 25;
 
     private static final int MSG_REQUEST_TRANSIENT_BARS_ARG_STATUS = 0;
     private static final int MSG_REQUEST_TRANSIENT_BARS_ARG_NAVIGATION = 1;
@@ -945,6 +946,13 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     break;
                 case MSG_POWER_LONG_PRESS:
                     powerLongPress();
+                    break;
+                case MSG_KIRO_POWER_CHORD:
+                    // KiroOS: Power + Volume Up still held together: the power menu
+                    if (mScreenshotChordPowerKeyTriggered && mScreenshotChordVolumeUpKeyTriggered) {
+                        performHapticFeedbackLw(null, HapticFeedbackConstants.LONG_PRESS, false);
+                        showGlobalActionsInternal();
+                    }
                     break;
                 case MSG_KIRO_POWER_MENU:
                     // still held: the power menu, as always
@@ -1386,6 +1394,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mScreenshotChordPowerKeyTriggered = true;
             mScreenshotChordPowerKeyTime = event.getDownTime();
             interceptScreenshotChord();
+            interceptKiroPowerChord();
         }
 
         // Stop ringing or end call if configured to do so when power is pressed.
@@ -1458,6 +1467,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private void interceptPowerKeyUp(KeyEvent event, boolean interactive, boolean canceled) {
+        mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
         if (mKiroPowerKaiPending) {
             // KiroOS: released after the long press but before the power menu: kAI
             mKiroPowerKaiPending = false;
@@ -1681,6 +1691,30 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
             return false;
         }
+    }
+
+    /**
+     * KiroOS: Power and Volume Up held together open the power menu (to switch off or
+     * restart), since holding Power alone opens kAI. In either order; the Volume Up of the
+     * chord does not change the volume.
+     */
+    private static final long KIRO_POWER_CHORD_DELAY_MS = 250;
+    private long mKiroVolumeUpKeyTime;
+    private boolean mKiroVolumeUpConsumed;
+
+    private void interceptKiroPowerChord() {
+        if (!mScreenshotChordPowerKeyTriggered || !mScreenshotChordVolumeUpKeyTriggered) {
+            return;
+        }
+        mKiroVolumeUpConsumed = true;
+        cancelPendingPowerKeyAction();
+        // not kAI either, even if Power was already held long enough for it
+        mKiroPowerKaiPending = false;
+        mHandler.removeMessages(MSG_KIRO_POWER_MENU);
+        mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
+        final Message msg = mHandler.obtainMessage(MSG_KIRO_POWER_CHORD);
+        msg.setAsynchronous(true);
+        mHandler.sendMessageDelayed(msg, KIRO_POWER_CHORD_DELAY_MS);
     }
 
     /** kAI's card over the current app, listening (KaiOverlayActivity) */
@@ -3758,6 +3792,26 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     mScreenshotChordVolumeDownKeyConsumed = false;
                 }
                 return -1;
+            }
+        }
+
+        // KiroOS: Volume Up waits a moment for a Power press (the power menu chord), like Volume
+        // Down does for the screenshot; the Volume Up of the chord never reaches the app
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && (flags & KeyEvent.FLAG_FALLBACK) == 0) {
+            if (mKiroVolumeUpConsumed) {
+                if (!down) {
+                    mKiroVolumeUpConsumed = false;
+                }
+                return -1;
+            }
+            if (down && repeatCount == 0 && mScreenshotChordVolumeUpKeyTriggered
+                    && !mScreenshotChordPowerKeyTriggered) {
+                final long now = SystemClock.uptimeMillis();
+                final long timeoutTime = mKiroVolumeUpKeyTime
+                        + SCREENSHOT_CHORD_DEBOUNCE_DELAY_MILLIS;
+                if (now < timeoutTime) {
+                    return timeoutTime - now;
+                }
             }
         }
 
@@ -6675,11 +6729,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         if (interactive && !mScreenshotChordVolumeUpKeyTriggered
                                 && (event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
                             mScreenshotChordVolumeUpKeyTriggered = true;
+                            mKiroVolumeUpKeyTime = event.getDownTime();
                             cancelPendingPowerKeyAction();
                             cancelPendingScreenshotChordAction();
+                            interceptKiroPowerChord();
                         }
                     } else {
                         mScreenshotChordVolumeUpKeyTriggered = false;
+                        mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
                         cancelPendingScreenshotChordAction();
                     }
                 }

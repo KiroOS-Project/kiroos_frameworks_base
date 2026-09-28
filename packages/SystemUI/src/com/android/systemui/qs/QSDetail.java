@@ -22,6 +22,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.drawable.Animatable;
+import android.graphics.drawable.GradientDrawable;
+import android.view.animation.PathInterpolator;
 import android.util.AttributeSet;
 import android.util.SparseArray;
 import android.view.View;
@@ -33,7 +35,9 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import com.android.internal.logging.MetricsLogger;
+import com.android.internal.logging.MetricsProto.MetricsEvent;
 import com.android.systemui.FontSizeUtils;
+import com.android.systemui.Interpolators;
 import com.android.systemui.R;
 import com.android.systemui.qs.QSTile.DetailAdapter;
 import com.android.systemui.statusbar.phone.BaseStatusBarHeader;
@@ -57,6 +61,11 @@ public class QSDetail extends LinearLayout {
     private TextView mQsDetailHeaderTitle;
     private Switch mQsDetailHeaderSwitch;
     private ImageView mQsDetailHeaderProgress;
+    // KiroOS: the sheet header's icon in a circle and the state under the title
+    private ImageView mKiroIcon;
+    private TextView mKiroSubtitle;
+    private final GradientDrawable mKiroIconShape = new GradientDrawable();
+    private static final PathInterpolator KIRO_SHEET_IN = new PathInterpolator(0.2f, 0.9f, 0.1f, 1f);
 
     private QSTileHost mHost;
 
@@ -96,6 +105,10 @@ public class QSDetail extends LinearLayout {
         mQsDetailHeaderTitle = (TextView) mQsDetailHeader.findViewById(android.R.id.title);
         mQsDetailHeaderSwitch = (Switch) mQsDetailHeader.findViewById(android.R.id.toggle);
         mQsDetailHeaderProgress = (ImageView) findViewById(R.id.qs_detail_header_progress);
+        mKiroIcon = (ImageView) mQsDetailHeader.findViewById(R.id.kiroos_detail_icon);
+        mKiroSubtitle = (TextView) mQsDetailHeader.findViewById(R.id.kiroos_detail_subtitle);
+        mKiroIconShape.setShape(GradientDrawable.OVAL);
+        mKiroIcon.setBackground(mKiroIconShape);
 
         updateDetailText();
 
@@ -154,7 +167,14 @@ public class QSDetail extends LinearLayout {
         setClickable(showingDetail);
         if (showingDetail) {
             mQsDetailHeaderTitle.setText(adapter.getTitle());
+            final int icon = kiroIconFor(adapter.getMetricsCategory());
+            mKiroIcon.setVisibility(icon != 0 ? VISIBLE : GONE);
+            if (icon != 0) {
+                mKiroIcon.setImageResource(icon);
+            }
             final Boolean toggleState = adapter.getToggleState();
+            mKiroSubtitle.setVisibility(toggleState != null ? VISIBLE : GONE);
+            kiroShowState(toggleState != null && toggleState);
             if (toggleState == null) {
                 mQsDetailHeaderSwitch.setVisibility(INVISIBLE);
                 mQsDetailHeader.setClickable(false);
@@ -232,8 +252,9 @@ public class QSDetail extends LinearLayout {
         if (visibleDiff) {
             mAnimatingOpen = adapter != null;
             if (mFullyExpanded || mDetailAdapter != null) {
-                setAlpha(1);
-                mClipper.animateCircularClip(x, y, mDetailAdapter != null, listener);
+                // KiroOS: the sheet grows out of the tile it belongs to and settles softly,
+                // over the grid, which goes away under it (no circle wiping over the panel)
+                kiroAnimateSheet(x, y, mDetailAdapter != null, listener);
             } else {
                 animate().alpha(0)
                         .setDuration(FADE_DURATION)
@@ -243,8 +264,77 @@ public class QSDetail extends LinearLayout {
         }
     }
 
+    /** KiroOS: the icon of the feature a sheet belongs to */
+    private static int kiroIconFor(int metricsCategory) {
+        switch (metricsCategory) {
+            case MetricsEvent.QS_BLUETOOTH_DETAILS:
+                return R.drawable.ic_qs_bluetooth_on;
+            case MetricsEvent.QS_WIFI_DETAILS:
+                return R.drawable.ic_qs_wifi_full_4;
+            case MetricsEvent.QS_DND_DETAILS:
+                return R.drawable.ic_qs_dnd_on;
+            case MetricsEvent.QS_CAST_DETAILS:
+                return R.drawable.ic_qs_cast_on;
+            case MetricsEvent.QS_DATAUSAGEDETAIL:
+                return R.drawable.ic_qs_signal_4;
+            default:
+                return 0;
+        }
+    }
+
+    /** KiroOS: accent circle and "On" while the feature is on, a quiet circle and "Off" if not */
+    private void kiroShowState(boolean on) {
+        mKiroSubtitle.setText(on ? R.string.kiroos_detail_on : R.string.kiroos_detail_off);
+        mKiroIconShape.setColor(mContext.getColor(on ? R.color.qs_tile_bg_active
+                : R.color.kiroos_detail_icon_bg));
+        mKiroIcon.setColorFilter(mContext.getColor(on ? R.color.qs_tile_tint_active
+                : R.color.qs_text));
+    }
+
+    private void kiroAnimateSheet(int x, int y, final boolean open,
+            final AnimatorListener listener) {
+        animate().cancel();
+        setPivotX(Math.max(0, Math.min(getWidth(), x)));
+        setPivotY(Math.max(0, Math.min(getHeight(), y)));
+        if (open) {
+            mClosingDetail = false;
+            setAlpha(0f);
+            setScaleX(0.9f);
+            setScaleY(0.9f);
+            animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(340)
+                    .setInterpolator(KIRO_SHEET_IN).setListener(listener).start();
+        } else {
+            animate().alpha(0f).scaleX(0.94f).scaleY(0.94f).setStartDelay(0).setDuration(200)
+                    .setInterpolator(Interpolators.FAST_OUT_LINEAR_IN)
+                    .setListener(new AnimatorListenerAdapter() {
+                        private boolean mCancelled;
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+                            // reopened before it was gone: the new sheet must not be torn down
+                            mCancelled = true;
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            animation.removeListener(this);
+                            if (!mCancelled) {
+                                setScaleX(1f);
+                                setScaleY(1f);
+                                if (listener != null) {
+                                    listener.onAnimationEnd(animation);
+                                }
+                            }
+                        }
+                    }).start();
+        }
+    }
+
     private void handleToggleStateChanged(boolean state, boolean toggleEnabled) {
         mSwitchState = state;
+        if (mDetailAdapter != null && mDetailAdapter.getToggleState() != null) {
+            kiroShowState(state);
+        }
         if (mAnimatingOpen) {
             return;
         }

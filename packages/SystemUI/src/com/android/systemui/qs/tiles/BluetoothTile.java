@@ -17,8 +17,6 @@
 package com.android.systemui.qs.tiles;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
@@ -30,15 +28,11 @@ import android.widget.Switch;
 
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.MetricsProto.MetricsEvent;
-import com.android.settingslib.bluetooth.CachedBluetoothDevice;
 import com.android.systemui.R;
-import com.android.systemui.qs.QSDetailItems;
-import com.android.systemui.qs.QSDetailItems.Item;
+import com.android.systemui.qs.KiroBluetoothPanel;
 import com.android.systemui.qs.QSTile;
 import com.android.systemui.statusbar.policy.BluetoothController;
 
-import java.util.ArrayList;
-import java.util.Collection;
 
 /** Quick settings tile: Bluetooth **/
 public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
@@ -112,9 +106,9 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
         state.autoMirrorDrawable = false;
         state.minimalContentDescription =
                 mContext.getString(R.string.accessibility_quick_settings_bluetooth);
-        if (mController.getBluetoothState() == BluetoothAdapter.STATE_ON) {
-            fireToggleStateChanged(true);
-        }
+        // KiroOS: the sheet's switch follows both ways (it only ever heard "on")
+        fireToggleStateChanged(enabled);
+        final int btState = mController.getBluetoothState();
         if (enabled) {
             state.label = null;
             if (connected) {
@@ -142,9 +136,14 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
             if (TextUtils.isEmpty(state.label)) {
                 state.label = mContext.getString(R.string.quick_settings_bluetooth_label);
             }
+            if (btState == BluetoothAdapter.STATE_TURNING_ON) {
+                // KiroOS: the tile answers at once, before the radio is up
+                state.label = mContext.getString(R.string.kiroos_turning_on);
+            }
         } else {
             state.icon = ResourceIcon.get(R.drawable.ic_qs_bluetooth_off);
-            state.label = mContext.getString(R.string.quick_settings_bluetooth_label);
+            state.label = mContext.getString(btState == BluetoothAdapter.STATE_TURNING_OFF
+                    ? R.string.kiroos_turning_off : R.string.quick_settings_bluetooth_label);
             state.contentDescription = mContext.getString(
                     R.string.accessibility_quick_settings_bluetooth_off);
         }
@@ -183,6 +182,12 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
     private final BluetoothController.Callback mCallback = new BluetoothController.Callback() {
         @Override
         public void onBluetoothStateChange(boolean enabled) {
+            mUiHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    mDetailAdapter.updateItems();
+                }
+            });
             refreshState();
         }
 
@@ -198,8 +203,9 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
         }
     };
 
-    private final class BluetoothDetailAdapter implements DetailAdapter, QSDetailItems.Callback {
-        private QSDetailItems mItems;
+    private final class BluetoothDetailAdapter implements DetailAdapter {
+        // KiroOS: the control centre Bluetooth sheet, redone from scratch
+        private KiroBluetoothPanel mPanel;
 
         @Override
         public CharSequence getTitle() {
@@ -226,7 +232,8 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
         public void setToggleState(boolean state) {
             MetricsLogger.action(mContext, MetricsEvent.QS_BLUETOOTH_TOGGLE, state);
             mController.setBluetoothEnabled(state);
-            showDetail(false);
+            // KiroOS: the sheet stays open and shows the new state
+            updateItems();
         }
 
         @Override
@@ -236,63 +243,24 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
 
         @Override
         public View createDetailView(Context context, View convertView, ViewGroup parent) {
-            mItems = QSDetailItems.convertOrInflate(context, convertView, parent);
-            mItems.setTagSuffix("Bluetooth");
-            mItems.setEmptyState(R.drawable.ic_qs_bluetooth_detail_empty,
-                    R.string.quick_settings_bluetooth_detail_empty_text);
-            mItems.setCallback(this);
-            updateItems();
-            setItemsVisible(mState.value);
-            return mItems;
+            mPanel = convertView instanceof KiroBluetoothPanel ? (KiroBluetoothPanel) convertView
+                    : new KiroBluetoothPanel(context, mController, new Runnable() {
+                        @Override
+                        public void run() {
+                            mHost.startActivityDismissingKeyguard(BLUETOOTH_SETTINGS);
+                        }
+                    });
+            mPanel.update();
+            return mPanel;
         }
 
         public void setItemsVisible(boolean visible) {
-            if (mItems == null) return;
-            mItems.setItemsVisible(visible);
+            updateItems();
         }
 
         private void updateItems() {
-            if (mItems == null) return;
-            ArrayList<Item> items = new ArrayList<Item>();
-            final Collection<CachedBluetoothDevice> devices = mController.getDevices();
-            if (devices != null) {
-                for (CachedBluetoothDevice device : devices) {
-                    if (device.getBondState() == BluetoothDevice.BOND_NONE) continue;
-                    final Item item = new Item();
-                    item.icon = R.drawable.ic_qs_bluetooth_on;
-                    item.line1 = device.getName();
-                    int state = device.getMaxConnectionState();
-                    if (state == BluetoothProfile.STATE_CONNECTED) {
-                        item.icon = R.drawable.ic_qs_bluetooth_connected;
-                        item.line2 = mContext.getString(R.string.quick_settings_connected);
-                        item.canDisconnect = true;
-                    } else if (state == BluetoothProfile.STATE_CONNECTING) {
-                        item.icon = R.drawable.ic_qs_bluetooth_connecting;
-                        item.line2 = mContext.getString(R.string.quick_settings_connecting);
-                    }
-                    item.tag = device;
-                    items.add(item);
-                }
-            }
-            mItems.setItems(items.toArray(new Item[items.size()]));
-        }
-
-        @Override
-        public void onDetailItemClick(Item item) {
-            if (item == null || item.tag == null) return;
-            final CachedBluetoothDevice device = (CachedBluetoothDevice) item.tag;
-            if (device != null && device.getMaxConnectionState()
-                    == BluetoothProfile.STATE_DISCONNECTED) {
-                mController.connect(device);
-            }
-        }
-
-        @Override
-        public void onDetailItemDisconnect(Item item) {
-            if (item == null || item.tag == null) return;
-            final CachedBluetoothDevice device = (CachedBluetoothDevice) item.tag;
-            if (device != null) {
-                mController.disconnect(device);
+            if (mPanel != null) {
+                mPanel.update();
             }
         }
     }

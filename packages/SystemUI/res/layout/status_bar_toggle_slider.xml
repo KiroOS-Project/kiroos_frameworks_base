@@ -57,7 +57,7 @@
         android:layout_height="22dp"
         android:layout_alignStart="@id/slider"
         android:layout_centerVertical="true"
-        android:layout_marginStart="17dp"
+        android:layout_marginStart="15dp"
         android:importantForAccessibility="no"
         android:src="@drawable/kiroos_ic_brightness"
         android:tint="@color/kiroos_bright_icon" />

@@ -445,6 +445,8 @@ public class BrightnessController implements ToggleSlider.Listener {
             mIcon.setImageResource(mAutomatic ?
                     com.android.systemui.R.drawable.ic_qs_brightness_auto_on :
                     com.android.systemui.R.drawable.ic_qs_brightness_auto_off);
+            // KiroOS: the round button turns accent while automatic brightness is on
+            mIcon.setActivated(mAutomatic);
         }
     }
 

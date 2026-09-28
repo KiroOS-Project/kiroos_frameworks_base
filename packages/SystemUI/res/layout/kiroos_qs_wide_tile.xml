@@ -8,22 +8,22 @@
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingEnd="4dp"
-    android:paddingStart="14dp"
+    android:paddingEnd="2dp"
+    android:paddingStart="12dp"
     android:visibility="gone">
 
     <ImageView
         android:id="@+id/kiroos_wide_icon"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
         android:importantForAccessibility="no"
-        android:padding="9dp"
+        android:padding="8dp"
         android:scaleType="fitCenter" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="11dp"
+        android:layout_marginStart="10dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -34,7 +34,7 @@
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
             android:singleLine="true"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/kiroos_wide_subtitle"
@@ -48,8 +48,8 @@
 
     <ImageView
         android:id="@+id/kiroos_wide_chevron"
-        android:layout_width="36dp"
-        android:layout_height="48dp"
+        android:layout_width="30dp"
+        android:layout_height="56dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/quick_settings_more_settings"
         android:scaleType="center"

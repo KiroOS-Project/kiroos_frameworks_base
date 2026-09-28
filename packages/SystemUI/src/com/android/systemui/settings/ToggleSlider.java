@@ -45,6 +45,8 @@ public class ToggleSlider extends RelativeLayout {
     private CompoundButton mToggle;
     private ToggleSeekBar mSlider;
     private TextView mLabel;
+    /** KiroOS: the sun inside the pill turns and grows a little with the brightness */
+    private View mSun;
 
     private ToggleSlider mMirror;
     private BrightnessMirrorController mMirrorController;
@@ -71,6 +73,10 @@ public class ToggleSlider extends RelativeLayout {
 
         mSlider = (ToggleSeekBar) findViewById(R.id.slider);
         mSlider.setOnSeekBarChangeListener(mSeekListener);
+        // KiroOS: a fill with round ends that starts as a circle around the sun
+        mSlider.setProgressDrawable(
+                com.android.systemui.kiroos.KiroBrightnessDrawable.create(context));
+        mSun = findViewById(R.id.kiroos_brightness_sun);
 
         mLabel = (TextView) findViewById(R.id.label);
         mLabel.setText(a.getString(R.styleable.ToggleSlider_text));
@@ -122,9 +128,21 @@ public class ToggleSlider extends RelativeLayout {
 
     public void setValue(int value) {
         mSlider.setProgress(value);
+        updateSun(value);
         if (mMirror != null) {
             mMirror.setValue(value);
         }
+    }
+
+    private void updateSun(int value) {
+        if (mSun == null) {
+            return;
+        }
+        final int max = mSlider.getMax();
+        final float f = max > 0 ? Math.max(0f, Math.min(1f, value / (float) max)) : 0f;
+        mSun.setRotation(f * 90f);
+        mSun.setScaleX(0.9f + 0.2f * f);
+        mSun.setScaleY(0.9f + 0.2f * f);
     }
 
     @Override
@@ -156,6 +174,7 @@ public class ToggleSlider extends RelativeLayout {
     private final OnSeekBarChangeListener mSeekListener = new OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            updateSun(progress);
             if (mListener != null) {
                 mListener.onChanged(
                         ToggleSlider.this, mTracking, mToggle.isChecked(), progress, false);

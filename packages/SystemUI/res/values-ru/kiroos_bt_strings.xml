@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: control centre Bluetooth panel and detail sheet -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="kiroos_bt_my_devices">Мои устройства</string>
+    <string name="kiroos_bt_nearby">Устройства рядом</string>
+    <string name="kiroos_bt_not_connected">Не подключено</string>
+    <string name="kiroos_bt_pairing">Сопряжение…</string>
+    <string name="kiroos_bt_tap_to_pair">Нажмите для сопряжения</string>
+    <string name="kiroos_bt_searching">Поиск…</string>
+    <string name="kiroos_bt_search_again">Искать снова</string>
+    <string name="kiroos_bt_none_nearby">Рядом нет устройств</string>
+    <string name="kiroos_bt_off_title">Bluetooth выключен</string>
+    <string name="kiroos_bt_off_text">Включите его, чтобы подключать наушники, колонки, часы и другое.</string>
+    <string name="kiroos_bt_turn_on">Включить Bluetooth</string>
+    <string name="kiroos_bt_no_paired">Нет сопряжённых устройств</string>
+    <string name="kiroos_bt_disconnect">Отключить</string>
+    <string name="kiroos_bt_disconnecting">Отключение…</string>
+    <string name="kiroos_turning_on">Включение…</string>
+    <string name="kiroos_turning_off">Выключение…</string>
+    <string name="kiroos_detail_on">Вкл.</string>
+    <string name="kiroos_detail_off">Выкл.</string>
+</resources>

@@ -37,6 +37,8 @@ public interface BluetoothController {
     void connect(CachedBluetoothDevice device);
     void disconnect(CachedBluetoothDevice device);
     boolean canConfigBluetooth();
+    /** KiroOS: looks for nearby devices (the control centre Bluetooth panel) */
+    void setScanning(boolean scanning);
 
     public interface Callback {
         void onBluetoothStateChange(boolean enabled);

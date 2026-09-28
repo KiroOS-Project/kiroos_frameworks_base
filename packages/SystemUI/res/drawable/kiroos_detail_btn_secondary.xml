@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: control centre sheet button (secondary) -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?android:attr/colorControlHighlight">
+    <item>
+        <shape>
+            <solid android:color="@color/kiroos_detail_icon_bg" />
+            <corners android:radius="24dp" />
+        </shape>
+    </item>
+</ripple>

@@ -509,10 +509,16 @@ public class StackScrollAlgorithm {
         childViewState.yTranslation = transitioningPositionStart + offset - newHeight
                 - getPaddingAfterChild(algorithmState, child);
         childViewState.location = StackViewState.LOCATION_MAIN_AREA;
-        // KiroOS: separate rounded cards do not read as a pile: the card folding into the
-        // bottom edge fades out, so it is nearly gone by the time it slides under the one above
-        childViewState.alpha = (float) Math.pow(
-                Math.max(0.0f, 1.0f - algorithmState.partialInBottom), 1.5);
+        // KiroOS: separate rounded cards do not read as a pile: a card sliding into the bottom
+        // edge fades out with the part of it that no longer fits, so it is nearly gone by the
+        // time it slides under. A tall card (an expanded group) is only shortened by the edge
+        // and stays opaque: fading it by how far it reaches in made it see-through.
+        final int collapsed = child.getCollapsedHeight();
+        final float fits = transitioningPositionStart + offset
+                - getPaddingAfterChild(algorithmState, child) - currentYPosition;
+        final float cut = collapsed > 0
+                ? Math.max(0.0f, Math.min(1.0f, (collapsed - fits) / collapsed)) : 0.0f;
+        childViewState.alpha = (float) Math.pow(1.0f - cut, 1.5);
     }
 
     private void updateStateForChildFullyInBottomStack(StackScrollAlgorithmState algorithmState,

@@ -1125,7 +1125,10 @@ class WindowStateAnimator {
                         // relative to their containing frame. We need to offset the difference
                         // between the containing frame as used to calculate the crop and our
                         // bounds to compensate for this.
-                        if (mWin.layoutInParentFrame()) {
+                        // KiroOS: the same holds for an app's other top-level windows (dialogs)
+                        // that do not fill the containing frame: the icon morph's crop has to
+                        // land on them where it lands on the main window
+                        if (mWin.layoutInParentFrame() || !mWin.isChildWindow()) {
                             mClipRect.offset( (mWin.mContainingFrame.left - mWin.mFrame.left),
                                     mWin.mContainingFrame.top - mWin.mFrame.top );
                         }
