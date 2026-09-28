@@ -115,6 +115,10 @@ public class KiroTicker {
 
     private void show(String text) {
         mHandler.removeCallbacks(mHide);
+        // the clock's colour: dark over apps with a light status bar, white otherwise
+        if (mClock instanceof TextView) {
+            mText.setTextColor(((TextView) mClock).getCurrentTextColor());
+        }
         mText.setText(text);
         mText.setVisibility(View.VISIBLE);
         mText.setSelected(true);                // starts the marquee
