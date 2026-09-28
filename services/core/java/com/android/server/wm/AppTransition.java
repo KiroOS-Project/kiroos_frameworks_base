@@ -634,23 +634,7 @@ public class AppTransition implements Dump {
             a.initialize(appWidth, appHeight, appWidth, appHeight);
             return a;
         } else if (transit == TRANSIT_WALLPAPER_CLOSE) {
-            // KiroOS: the home steps back and fades, toward the tapped icon, while the app
-            // comes forward; the wallpaper stays still behind both.
-            final float pivotX = mTmpRect.isEmpty() ? appWidth / 2f : mTmpRect.exactCenterX();
-            final float pivotY = mTmpRect.isEmpty() ? appHeight / 2f : mTmpRect.exactCenterY();
-            final Animation scale = new ScaleAnimation(1f, 0.92f, 1f, 0.92f, pivotX, pivotY);
-            scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
-            scale.setDuration(KIRO_LAUNCH_DURATION);
-            final Animation fade = new AlphaAnimation(1f, 0f);
-            fade.setInterpolator(mFastOutSlowInInterpolator);
-            fade.setDuration(KIRO_HOME_RECEDE_DURATION);
-            final AnimationSet set = new AnimationSet(false);
-            set.addAnimation(scale);
-            set.addAnimation(fade);
-            set.setDetachWallpaper(true);
-            set.setFillAfter(true);
-            set.initialize(appWidth, appHeight, appWidth, appHeight);
-            return set;
+            return createKiroHomeRecede(appWidth, appHeight);
         } else  if (transit == TRANSIT_WALLPAPER_INTRA_OPEN ||
                     transit == TRANSIT_WALLPAPER_INTRA_CLOSE) {
             // If we are on top of the wallpaper, we need an animation that
@@ -767,8 +751,7 @@ public class AppTransition implements Dump {
     private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight) {
         final AnimationSet set = new AnimationSet(false);
         if (appWidth > 0 && appHeight > 0 && !from.isEmpty()) {
-            final float s = Math.max(0.06f, Math.min(0.6f, from.width() / (float) appWidth));
-            addKiroIconMorph(set, from, appWidth, appHeight, s, true);
+            addKiroIconMorph(set, from, appWidth, appHeight, kiroLaunchScale(from, appWidth), true);
         } else {
             final Animation scale = new ScaleAnimation(0.3f, 1f, 0.3f, 1f,
                     appWidth / 2f, appHeight / 2f);
@@ -784,6 +767,64 @@ public class AppTransition implements Dump {
         set.setDetachWallpaper(true);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
+        return set;
+    }
+
+    /**
+     * KiroOS: the home steps back and fades, toward the tapped icon (mTmpRect), while the app
+     * comes forward; the wallpaper stays still behind both.
+     */
+    private Animation createKiroHomeRecede(int appWidth, int appHeight) {
+        final float pivotX = mTmpRect.isEmpty() ? appWidth / 2f : mTmpRect.exactCenterX();
+        final float pivotY = mTmpRect.isEmpty() ? appHeight / 2f : mTmpRect.exactCenterY();
+        final Animation scale = new ScaleAnimation(1f, 0.92f, 1f, 0.92f, pivotX, pivotY);
+        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        scale.setDuration(KIRO_LAUNCH_DURATION);
+        final Animation fade = new AlphaAnimation(1f, 0f);
+        fade.setInterpolator(mFastOutSlowInInterpolator);
+        fade.setDuration(KIRO_HOME_RECEDE_DURATION);
+        final AnimationSet set = new AnimationSet(false);
+        set.addAnimation(scale);
+        set.addAnimation(fade);
+        set.setDetachWallpaper(true);
+        set.setFillAfter(true);
+        set.initialize(appWidth, appHeight, appWidth, appHeight);
+        return set;
+    }
+
+    /** the window scale at which the launch morph starts: the icon's width */
+    private static float kiroLaunchScale(Rect from, int appWidth) {
+        return Math.max(0.06f, Math.min(0.6f, from.width() / (float) appWidth));
+    }
+
+    /**
+     * KiroOS: the picture of the tapped icon grows with the app window (the pivot and curve of
+     * createKiroLaunchZoom, so it always covers the square the window grows through) and
+     * dissolves into it early: the app opens out of the icon itself, rounded corners included.
+     * The thumbnail surface has no position of its own: the animation places it on the icon.
+     */
+    private Animation createKiroIconThumbnail(int appWidth, int appHeight) {
+        final Rect icon = mTmpRect;
+        final float s = kiroLaunchScale(icon, appWidth);
+        final float pivotX = (icon.exactCenterX() - s * appWidth / 2f) / (1f - s);
+        final float pivotY = (icon.exactCenterY() - s * appHeight / 2f) / (1f - s);
+        final AnimationSet set = new AnimationSet(false);
+        // applied first: onto the icon...
+        final Animation place = new TranslateAnimation(icon.left, icon.left, icon.top, icon.top);
+        place.setDuration(KIRO_LAUNCH_DURATION);
+        set.addAnimation(place);
+        // ...then grown with the window
+        final Animation grow = new ScaleAnimation(1f, 1f / s, 1f, 1f / s, pivotX, pivotY);
+        grow.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        grow.setDuration(KIRO_LAUNCH_DURATION);
+        set.addAnimation(grow);
+        final Animation fade = new AlphaAnimation(1f, 0f);
+        fade.setInterpolator(mLinearOutSlowInInterpolator);
+        fade.setStartOffset(40);
+        fade.setDuration(150);
+        set.addAnimation(fade);
+        set.setFillAfter(true);
+        set.initialize(appWidth, appHeight, appWidth, appHeight);
         return set;
     }
 
@@ -1443,6 +1484,10 @@ public class AppTransition implements Dump {
         final int thumbHeightI = thumbnailHeader.getHeight();
         final float thumbHeight = thumbHeightI > 0 ? thumbHeightI : 1;
 
+        if (mNextAppTransitionScaleUp && !mTmpRect.isEmpty() && appWidth > 0 && appHeight > 0) {
+            // KiroOS: an app opened from an icon with its picture (Kiro Home)
+            return createKiroIconThumbnail(appWidth, appHeight);
+        }
         if (mNextAppTransitionScaleUp) {
             // Animation for the thumbnail zooming from its initial size to the full screen
             float scaleW = appWidth / thumbWidth;
@@ -1487,6 +1532,20 @@ public class AppTransition implements Dump {
         final float thumbWidth = thumbWidthI > 0 ? thumbWidthI : 1;
         final int thumbHeightI = thumbnailHeader != null ? thumbnailHeader.getHeight() : appHeight;
         final float thumbHeight = thumbHeightI > 0 ? thumbHeightI : 1;
+
+        // KiroOS: the app opens out of the icon (its picture grows with it, see
+        // createKiroIconThumbnail) while the home steps back
+        if (thumbTransitState == THUMBNAIL_TRANSITION_ENTER_SCALE_UP && !mTmpRect.isEmpty()) {
+            final Rect icon = new Rect(mTmpRect);
+            icon.offset(-containingFrame.left, -containingFrame.top);
+            a = createKiroLaunchZoom(icon, appWidth, appHeight);
+            a.initialize(appWidth, appHeight, appWidth, appHeight);
+            return a;
+        }
+        if (thumbTransitState == THUMBNAIL_TRANSITION_EXIT_SCALE_UP
+                && transit == TRANSIT_WALLPAPER_CLOSE) {
+            return createKiroHomeRecede(appWidth, appHeight);
+        }
 
         switch (thumbTransitState) {
             case THUMBNAIL_TRANSITION_ENTER_SCALE_UP: {
@@ -1684,6 +1743,7 @@ public class AppTransition implements Dump {
                     (mNextAppTransitionType == NEXT_TRANSIT_TYPE_THUMBNAIL_SCALE_UP);
             a = createThumbnailEnterExitAnimationLocked(getThumbnailTransitionState(enter),
                     frame, transit, taskId);
+            kiroRememberIcon(enter, taskId);
             if (DEBUG_APP_TRANSITIONS || DEBUG_ANIM) {
                 String animName = mNextAppTransitionScaleUp ?
                         "ANIM_THUMBNAIL_SCALE_UP" : "ANIM_THUMBNAIL_SCALE_DOWN";
