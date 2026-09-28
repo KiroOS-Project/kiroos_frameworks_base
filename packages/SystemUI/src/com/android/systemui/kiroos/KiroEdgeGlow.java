@@ -43,7 +43,8 @@ import com.android.systemui.SystemUI;
  *   kAI       while an answer is being written, a blue-violet light turns slowly round
  *   charging  when the cable goes in, a wave of light runs once round the screen
  *   music     Pulse Music sends its beats; the edge pulses in time
- *   notify    two soft pulses for a new notification, also on the always-on display
+ *   notify    two soft pulses for a new notification, only on the always-on display
+ *             (with the screen on the notification shows as a card)
  *
  * Apps talk to it with the broadcast com.kiroos.intent.EDGE_GLOW (package
  * com.android.systemui), extra "mode": kai_start, kai_stop, beat (+ float "level" 0..1).
@@ -139,11 +140,21 @@ public class KiroEdgeGlow extends SystemUI {
 
     private void notifyPulse() {
         final long now = SystemClock.uptimeMillis();
-        if (!enabled() || mKai || now - mLastNotify < 2500) {
+        if (!enabled() || mKai || now - mLastNotify < 2500 || !dozing()) {
             return;
         }
         mLastNotify = now;
         play(NOTIFY, 1500, 0);
+    }
+
+    /** the always-on display is showing: the screen is on, in its low-power doze state */
+    private boolean dozing() {
+        final android.view.Display d = mContext.getSystemService(
+                android.hardware.display.DisplayManager.class).getDisplay(
+                android.view.Display.DEFAULT_DISPLAY);
+        final int state = d.getState();
+        return state == android.view.Display.STATE_DOZE
+                || state == android.view.Display.STATE_DOZE_SUSPEND;
     }
 
     private void ensureView() {

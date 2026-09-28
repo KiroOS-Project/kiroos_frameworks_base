@@ -509,6 +509,10 @@ public class StackScrollAlgorithm {
         childViewState.yTranslation = transitioningPositionStart + offset - newHeight
                 - getPaddingAfterChild(algorithmState, child);
         childViewState.location = StackViewState.LOCATION_MAIN_AREA;
+        // KiroOS: separate rounded cards do not read as a pile: the card folding into the
+        // bottom edge fades out, so it is nearly gone by the time it slides under the one above
+        childViewState.alpha = (float) Math.pow(
+                Math.max(0.0f, 1.0f - algorithmState.partialInBottom), 1.5);
     }
 
     private void updateStateForChildFullyInBottomStack(StackScrollAlgorithmState algorithmState,
@@ -524,18 +528,14 @@ public class StackScrollAlgorithm {
             childViewState.location = StackViewState.LOCATION_BOTTOM_STACK_PEEKING;
         } else {
             // we are fully inside the stack
-            if (algorithmState.itemsInBottomStack > MAX_ITEMS_IN_BOTTOM_STACK + 2) {
-                childViewState.hidden = true;
-                childViewState.shadowAlpha = 0.0f;
-            } else if (algorithmState.itemsInBottomStack
-                    > MAX_ITEMS_IN_BOTTOM_STACK + 1) {
-                childViewState.shadowAlpha = 1.0f - algorithmState.partialInBottom;
-            }
             childViewState.location = StackViewState.LOCATION_BOTTOM_STACK_HIDDEN;
             currentYPosition = ambientState.getInnerHeight();
         }
         childViewState.height = collapsedHeight;
         childViewState.yTranslation = currentYPosition - collapsedHeight;
+        // KiroOS: no strips of collapsed cards peeking out under the last one
+        childViewState.hidden = true;
+        childViewState.shadowAlpha = 0.0f;
     }
 
 

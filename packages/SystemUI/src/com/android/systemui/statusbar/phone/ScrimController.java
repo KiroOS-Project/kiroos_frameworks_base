@@ -49,7 +49,8 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener,
             = new PathInterpolator(0f, 0, 0.7f, 1f);
     public static final Interpolator KEYGUARD_FADE_OUT_INTERPOLATOR_LOCKED
             = new PathInterpolator(0.3f, 0f, 0.8f, 1f);
-    private static final float SCRIM_BEHIND_ALPHA = 0.62f;
+    // KiroOS: the notification cards float on an even dim (no band behind them any more)
+    private static final float SCRIM_BEHIND_ALPHA = 0.9f;
     protected static final float SCRIM_BEHIND_ALPHA_KEYGUARD = 0.45f;
     protected static final float SCRIM_BEHIND_ALPHA_UNLOCKING = 0.2f;
     private static final float SCRIM_IN_FRONT_ALPHA = 0.75f;

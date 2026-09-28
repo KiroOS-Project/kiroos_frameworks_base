@@ -414,11 +414,9 @@ public class NotificationStackScrollLayout extends ViewGroup
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if (mCurrentBounds.top < mCurrentBounds.bottom) {
-            // KiroOS: the cards have side margins, cover them too so the shade stays black
-            canvas.drawRect(-mSideMargin, mCurrentBounds.top, getWidth() + mSideMargin,
-                    mCurrentBounds.bottom, mBackgroundPaint);
-        }
+        // KiroOS: no background band behind the notifications. They are separate rounded
+        // cards: the band showed as a translucent strip on the lock screen and ended under the
+        // last card in the shade. The scrim behind the shade dims the whole screen evenly.
         if (DEBUG) {
             int y = mTopPadding;
             canvas.drawLine(0, y, getWidth(), y, mDebugPaint);
