@@ -37,6 +37,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:src="@drawable/ic_qs_brightness_auto_off"
+        android:tint="@color/qs_text"
         android:contentDescription="@null"
         android:visibility="gone" />
 

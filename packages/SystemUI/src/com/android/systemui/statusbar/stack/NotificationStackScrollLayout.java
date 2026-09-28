@@ -2014,9 +2014,10 @@ public class NotificationStackScrollLayout extends ViewGroup
     }
 
     private void applyCurrentBackgroundBounds() {
-        mScrimController.setExcludedBackgroundArea(
-                mFadingOut || mParentFadingOut || mAmbientState.isDark() ? null
-                        : mCurrentBounds);
+        // KiroOS: the stack draws no background of its own (separate rounded cards), so the
+        // scrim must not leave a hole for one: nobody painted it and it kept stale pixels (the
+        // black band after the always-on display, trails of moving cards)
+        mScrimController.setExcludedBackgroundArea(null);
         invalidate();
     }
 

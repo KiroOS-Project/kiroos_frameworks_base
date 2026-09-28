@@ -64,6 +64,8 @@ public class QSIconView extends ViewGroup {
     protected ColorFilter mIconFilter;
     private final ColorFilter mActiveFilter;
     private final ColorFilter mInactiveFilter;
+    /** tiles without an on/off state (battery...) draw white icons: inverted in the light theme */
+    private final ColorFilter mNeutralFilter;
 
     public QSIconView(Context context) {
         super(context);
@@ -86,6 +88,14 @@ public class QSIconView extends ViewGroup {
                 0, 0, 0, 0, Color.green(off),
                 0, 0, 0, 0, Color.blue(off),
                 0, 0, 0, 2.5f, 0 }));
+        final boolean light = (context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_NO;
+        mNeutralFilter = light ? new ColorMatrixColorFilter(new ColorMatrix(new float[] {
+                -1, 0, 0, 0, 255,
+                0, -1, 0, 0, 255,
+                0, 0, -1, 0, 255,
+                0, 0, 0, 1, 0 })) : null;
         setWillNotDraw(false);
 
         mIcon = createIcon();
@@ -190,9 +200,10 @@ public class QSIconView extends ViewGroup {
             active = ((QSTile.BooleanState) state).value;
             mIconFilter = active ? mActiveFilter : mInactiveFilter;
         } else {
-            // Tiles without an on/off state (battery, profiles...) keep their own colors
+            // Tiles without an on/off state (battery, profiles...) keep their own colours; their
+            // white icons are inverted in the light theme so they stay readable
             active = false;
-            mIconFilter = null;
+            mIconFilter = mNeutralFilter;
         }
         applyIconFilter(iv);
         if (mActive != active || !mHasState) {

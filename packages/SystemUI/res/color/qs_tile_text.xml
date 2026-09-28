@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- KiroOS High-Contrast Quick Settings Tile Text Selector -->
+<!-- KiroOS quick settings tile names (follow the theme) -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_enabled="false" android:color="#FFB0B0B5" />
-    <item android:color="#FFFFFFFF" />
+    <item android:state_enabled="false" android:color="@color/qs_tile_disabled_color" />
+    <item android:color="@color/qs_text" />
 </selector>
