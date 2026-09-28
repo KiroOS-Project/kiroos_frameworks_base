@@ -167,9 +167,35 @@ public final class ShutdownThread extends Thread {
         return advancedRebootEnabled && !keyguardLocked && isPrimaryUser;
     }
 
+    /** KiroOS: the confirmation follows the theme, like the power menu (GlobalActions) */
+    private static final class GlobalActionsColors {
+        static boolean light(Context c) {
+            return (c.getResources().getConfiguration().uiMode
+                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                    == android.content.res.Configuration.UI_MODE_NIGHT_NO;
+        }
+
+        static int theme(Context c) {
+            return light(c) ? com.android.internal.R.style.Theme_Material_Light_Dialog_Alert
+                    : com.android.internal.R.style.Theme_Material_Dialog_Alert;
+        }
+
+        static int card(Context c) {
+            return light(c) ? 0xFFFFFFFF : 0xFF181818;
+        }
+
+        static int fg(Context c) {
+            return light(c) ? 0xFF1C1C1E : 0xFFFFFFFF;
+        }
+
+        static int fg2(Context c) {
+            return light(c) ? 0xFF6C6C72 : 0xFFB0B0B0;
+        }
+    }
+
     private static InsetDrawable createAmoledCardDrawable(Context context) {
         GradientDrawable gd = new GradientDrawable();
-        gd.setColor(0xFF181818);
+        gd.setColor(GlobalActionsColors.card(context));
         float density = context.getResources().getDisplayMetrics().density;
         int cornerRadius = (int) (16 * density + 0.5f);
         int inset = (int) (16 * density + 0.5f);
@@ -226,7 +252,7 @@ public final class ShutdownThread extends Thread {
                 sConfirmDialog.dismiss();
                 sConfirmDialog = null;
             }
-            Context themedContext = new ContextThemeWrapper(context, com.android.internal.R.style.Theme_Material_Dialog_Alert);
+            Context themedContext = new ContextThemeWrapper(context, GlobalActionsColors.theme(context));
             AlertDialog.Builder confirmDialogBuilder = new AlertDialog.Builder(themedContext)
                     .setTitle(mRebootSafeMode
                             ? com.android.internal.R.string.reboot_safemode_title
@@ -282,13 +308,13 @@ public final class ShutdownThread extends Thread {
                 public void onShow(DialogInterface dialog) {
                     if (sConfirmDialog != null) {
                         Button p = sConfirmDialog.getButton(DialogInterface.BUTTON_POSITIVE);
-                        if (p != null) p.setTextColor(0xFFFFFFFF);
+                        if (p != null) p.setTextColor(GlobalActionsColors.fg(context));
                         Button n = sConfirmDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
-                        if (n != null) n.setTextColor(0xFFB0B0B0);
+                        if (n != null) n.setTextColor(GlobalActionsColors.fg2(context));
                         TextView title = (TextView) sConfirmDialog.findViewById(com.android.internal.R.id.alertTitle);
-                        if (title != null) title.setTextColor(0xFFFFFFFF);
+                        if (title != null) title.setTextColor(GlobalActionsColors.fg(context));
                         TextView message = (TextView) sConfirmDialog.findViewById(android.R.id.message);
-                        if (message != null) message.setTextColor(0xFFFFFFFF);
+                        if (message != null) message.setTextColor(GlobalActionsColors.fg(context));
                     }
                 }
             });
@@ -378,7 +404,7 @@ public final class ShutdownThread extends Thread {
         }
 
         // Throw up a system dialog to indicate the device is rebooting / shutting down.
-        Context themedPdContext = new ContextThemeWrapper(context, com.android.internal.R.style.Theme_Material_Dialog_Alert);
+        Context themedPdContext = new ContextThemeWrapper(context, GlobalActionsColors.theme(context));
         ProgressDialog pd = new ProgressDialog(themedPdContext);
 
         // Path 1: Reboot to recovery for update
@@ -455,9 +481,9 @@ public final class ShutdownThread extends Thread {
             @Override
             public void onShow(DialogInterface dialog) {
                 TextView title = (TextView) pd.findViewById(com.android.internal.R.id.alertTitle);
-                if (title != null) title.setTextColor(0xFFFFFFFF);
+                if (title != null) title.setTextColor(GlobalActionsColors.fg(context));
                 TextView message = (TextView) pd.findViewById(android.R.id.message);
-                if (message != null) message.setTextColor(0xFFFFFFFF);
+                if (message != null) message.setTextColor(GlobalActionsColors.fg(context));
             }
         });
         pd.show();

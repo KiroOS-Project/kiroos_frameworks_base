@@ -1086,15 +1086,15 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                 icon.setImageDrawable(context.getDrawable(mIconResId));
             }
             if (icon != null) {
-                icon.setColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+                icon.setColorFilter(kiroFg(context), PorterDuff.Mode.SRC_IN);
             }
             if (mMessage != null) {
                 messageView.setText(mMessage);
             } else {
                 messageView.setText(mMessageResId);
             }
-            messageView.setTextColor(0xFFFFFFFF);
-            statusView.setTextColor(0xFFB0B0B5);
+            messageView.setTextColor(kiroFg(context));
+            statusView.setTextColor(kiroFgSecondary(context));
 
             return v;
         }
@@ -1186,7 +1186,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                 icon.setImageDrawable(context.getDrawable(
                         (on ? mEnabledIconResId : mDisabledIconResid)));
                 icon.setEnabled(enabled);
-                icon.setColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+                icon.setColorFilter(kiroFg(context), PorterDuff.Mode.SRC_IN);
             }
 
             if (statusView != null) {
@@ -1328,7 +1328,8 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                     for (int j = 0; j < vg.getChildCount(); j++) {
                         View child = vg.getChildAt(j);
                         if (child instanceof ImageView) {
-                            ((ImageView) child).setColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+                            ((ImageView) child).setColorFilter(kiroFg(child.getContext()),
+                                    PorterDuff.Mode.SRC_IN);
                         }
                     }
                 }
@@ -1506,6 +1507,27 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         return output;
     }
 
+
+    // KiroOS: the power menu follows the theme (Settings > Display > Theme): a white card with
+    // dark text in the light theme, the AMOLED card otherwise
+    static boolean kiroLight(Context c) {
+        return (c.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_NO;
+    }
+
+    static int kiroFg(Context c) {
+        return kiroLight(c) ? 0xFF1C1C1E : 0xFFFFFFFF;
+    }
+
+    static int kiroFgSecondary(Context c) {
+        return kiroLight(c) ? 0xFF6C6C72 : 0xFFB0B0B5;
+    }
+
+    static int kiroCard(Context c) {
+        return kiroLight(c) ? 0xFFFFFFFF : 0xFF181818;
+    }
+
     private static final class GlobalActionsDialog extends Dialog implements DialogInterface {
         private final Context mContext;
         private final int mWindowTouchSlop;
@@ -1534,7 +1556,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                 Context context) {
             android.graphics.drawable.GradientDrawable gd =
                     new android.graphics.drawable.GradientDrawable();
-            gd.setColor(0xFF181818);
+            gd.setColor(kiroCard(context));
             float density = context.getResources().getDisplayMetrics().density;
             int cornerRadius = (int) (16 * density + 0.5f);
             int inset = (int) (16 * density + 0.5f);
@@ -1553,7 +1575,8 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         }
 
         private static int getDialogTheme(Context context) {
-            return com.android.internal.R.style.Theme_Material_Dialog_Alert;
+            return kiroLight(context) ? com.android.internal.R.style.Theme_Material_Light_Dialog_Alert
+                    : com.android.internal.R.style.Theme_Material_Dialog_Alert;
         }
 
         @Override
