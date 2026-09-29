@@ -12436,6 +12436,24 @@ public class PackageManagerService extends IPackageManager.Stub {
     }
 
     /**
+     * KiroOS: KeurStore, the privileged system store, installs apps only from their official
+     * sources (the developer's own download, F-Droid), and Android still checks their
+     * signature as usual. The Play Store verifier crashes on this system (JNI local reference
+     * table overflow in its native library) on every package it is asked about: its installs
+     * are not sent to it, so no "Google Play Store has stopped" and no 10 s verification wait.
+     */
+    private boolean kiroTrustedInstaller(String installer) {
+        if (!"com.kiroos.store".equals(installer)) {
+            return false;
+        }
+        synchronized (mPackages) {
+            final PackageSetting ps = mSettings.mPackages.get(installer);
+            return ps != null && (ps.pkgFlags & ApplicationInfo.FLAG_SYSTEM) != 0
+                    && (ps.pkgPrivateFlags & ApplicationInfo.PRIVATE_FLAG_PRIVILEGED) != 0;
+        }
+    }
+
+    /**
      * Check whether or not package verification has been enabled.
      *
      * @return true if verification should be performed
@@ -13334,7 +13352,8 @@ public class PackageManagerService extends IPackageManager.Stub {
                         : getPackageUid(mRequiredVerifierPackage, MATCH_DEBUG_TRIAGED_MISSING,
                                 verifierUser.getIdentifier());
                 if (!origin.existing && requiredUid != -1
-                        && isVerificationEnabled(verifierUser.getIdentifier(), installFlags)) {
+                        && isVerificationEnabled(verifierUser.getIdentifier(), installFlags)
+                        && !kiroTrustedInstaller(installerPackageName)) {
                     final Intent verification = new Intent(
                             Intent.ACTION_PACKAGE_NEEDS_VERIFICATION);
                     verification.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
