@@ -156,10 +156,14 @@ public class AppTransition implements Dump {
      * involved, to make it more understandable.
      */
     private static final int MAX_CLIP_REVEAL_TRANSITION_DURATION = 420;
-    // KiroOS launch zoom (apps from the launcher, widgets, cards)
-    private static final int KIRO_LAUNCH_DURATION = 380;
-    /** the home steps back while the app grows out of the icon */
-    private static final int KIRO_HOME_RECEDE_DURATION = 260;
+    // KiroOS launch zoom (apps from the launcher, widgets, cards). 2.1.1: 380 -> 340 ms, the
+    // emphasized curve already covers the screen at about 40% of it, the rest is the settle.
+    private static final int KIRO_LAUNCH_DURATION = 340;
+    /**
+     * the home steps back while the app grows out of the icon; 2.1.1: gone in 190 ms (was 260)
+     * so for most of the launch SurfaceFlinger blends two layers (wallpaper, app), not three
+     */
+    private static final int KIRO_HOME_RECEDE_DURATION = 190;
     /** emphasized easing: leaves at once, settles long and soft (res interpolator kiro_emphasized) */
     private static final Interpolator KIRO_LAUNCH_INTERPOLATOR = new PathInterpolator(kiroEmphasized());
 
@@ -781,7 +785,8 @@ public class AppTransition implements Dump {
         scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
         scale.setDuration(KIRO_LAUNCH_DURATION);
         final Animation fade = new AlphaAnimation(1f, 0f);
-        fade.setInterpolator(mFastOutSlowInInterpolator);
+        // fast out, linear in: the home clears the way as the app grows over it
+        fade.setInterpolator(mFastOutLinearInInterpolator);
         fade.setDuration(KIRO_HOME_RECEDE_DURATION);
         final AnimationSet set = new AnimationSet(false);
         set.addAnimation(scale);
@@ -820,16 +825,16 @@ public class AppTransition implements Dump {
         set.addAnimation(grow);
         final Animation fade = new AlphaAnimation(1f, 0f);
         fade.setInterpolator(mLinearOutSlowInInterpolator);
-        fade.setStartOffset(40);
-        fade.setDuration(150);
+        fade.setStartOffset(30);
+        fade.setDuration(130);
         set.addAnimation(fade);
         set.setFillAfter(true);
         set.initialize(appWidth, appHeight, appWidth, appHeight);
         return set;
     }
 
-    /** how long a closing app takes to shrink into its icon */
-    private static final int KIRO_CLOSE_DURATION = 360;
+    /** how long a closing app takes to shrink into its icon (2.1.1: 360 -> 320 ms) */
+    private static final int KIRO_CLOSE_DURATION = 320;
     /** where each app's icon sits on the home, published by Kiro Home (kiroos_home_icons) */
     private volatile android.util.ArrayMap<String, Rect> mKiroHomeIcons;
     private boolean mKiroHomeIconsObserved;
@@ -980,7 +985,8 @@ public class AppTransition implements Dump {
         scale.setDuration(KIRO_CLOSE_DURATION);
         final Animation fade = new AlphaAnimation(0f, 1f);
         fade.setInterpolator(mDecelerateInterpolator);
-        fade.setDuration(KIRO_CLOSE_DURATION / 2);
+        // opaque again early: the rest of the close blends only the shrinking app over it
+        fade.setDuration(KIRO_CLOSE_DURATION * 2 / 5);
         final AnimationSet set = new AnimationSet(false);
         set.addAnimation(scale);
         set.addAnimation(fade);
@@ -1011,9 +1017,10 @@ public class AppTransition implements Dump {
         addKiroIconMorph(set, icon, w, h, s, false);
         final Animation fade = new AlphaAnimation(1f, 0f);
         fade.setInterpolator(mLinearOutSlowInInterpolator);
-        // the app follows its way down to the icon and only melts into it on arrival
-        fade.setStartOffset(KIRO_CLOSE_DURATION * 78 / 100);
-        fade.setDuration(KIRO_CLOSE_DURATION * 22 / 100);
+        // the app follows its way down to the icon and melts into it on arrival (a little
+        // longer than before, 2.1.1: the last 26%, so the hand-over to the icon is softer)
+        fade.setStartOffset(KIRO_CLOSE_DURATION * 74 / 100);
+        fade.setDuration(KIRO_CLOSE_DURATION * 26 / 100);
         set.addAnimation(fade);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
