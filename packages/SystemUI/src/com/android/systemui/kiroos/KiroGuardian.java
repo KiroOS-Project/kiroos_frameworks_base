@@ -44,8 +44,21 @@ import android.widget.TextView;
 
 import com.android.systemui.R;
 import com.android.systemui.SystemUI;
+import com.android.systemui.recents.misc.SystemServicesProxy;
 
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.os.HandlerThread;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Kiro Thermal Guardian and Battery Guardian.
@@ -59,7 +72,10 @@ import java.util.List;
  *
  * Battery Guardian (the kernel's batt_kiro_charge, the cable and USB stay connected):
  *   charge limit (Settings > Battery): charging stops at 80% and restarts at 77%
- *   bypass (Game Space): on the charger the phone runs from it, the battery is not charged
+ *   bypass (Game Space): on the charger the phone runs from it, the battery is not charged,
+ *     only while a game is on screen (screen on, game in front); any other time it charges.
+ *     It used to hold charging whenever the switch was on, so a phone left with it on never
+ *     charged above 20% (the kernel's floor), on any charger.
  */
 public class KiroGuardian extends SystemUI {
 
@@ -81,6 +97,11 @@ public class KiroGuardian extends SystemUI {
     private int mSavedMode = -1;
     private View mCooling;
     private TextView mCoolingTemp;
+    private boolean mScreenOn = true;
+    private boolean mGameOnTop;
+    /** "is a game" per installed APK path (a new path after each update) */
+    private final Map<String, Boolean> mGameCache = new HashMap<String, Boolean>();
+    private Handler mBgHandler;
 
     @Override
     public void start() {
@@ -99,10 +120,23 @@ public class KiroGuardian extends SystemUI {
         mContext.registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                SystemProperties.set(PROP_SCREEN,
-                        Intent.ACTION_SCREEN_ON.equals(intent.getAction()) ? "1" : "0");
+                mScreenOn = Intent.ACTION_SCREEN_ON.equals(intent.getAction());
+                SystemProperties.set(PROP_SCREEN, mScreenOn ? "1" : "0");
+                update();
             }
         }, screen, null, mHandler);
+        // bypass follows the app in front (a game or not)
+        final HandlerThread bg = new HandlerThread("KiroGuardianBg", Process.THREAD_PRIORITY_BACKGROUND);
+        bg.start();
+        mBgHandler = new Handler(bg.getLooper());
+        SystemServicesProxy.getInstance(mContext).registerTaskStackListener(
+                new SystemServicesProxy.TaskStackListener() {
+                    @Override
+                    public void onTaskStackChanged() {
+                        checkTopApp();
+                    }
+                });
+        checkTopApp();
         final ContentObserver settings = new ContentObserver(mHandler) {
             @Override
             public void onChange(boolean selfChange) {
@@ -306,12 +340,105 @@ public class KiroGuardian extends SystemUI {
     // ------------------------------------------------------------------ charging
 
     private void updateCharging() {
-        // the kernel (batt_kiro_charge) stops and restarts charging itself: here only the mode
-        final int mode = setting(KEY_BYPASS) ? 2 : setting(KEY_CHARGE_LIMIT) ? 1 : 0;
+        // the kernel (batt_kiro_charge) stops and restarts charging itself: here only the mode.
+        // Bypass only while a game is actually being played: screen on, game in front.
+        final boolean bypass = setting(KEY_BYPASS) && mScreenOn && mGameOnTop;
+        final int mode = bypass ? 2 : setting(KEY_CHARGE_LIMIT) ? 1 : 0;
         if (mode != mChargeMode) {
             mChargeMode = mode;
             SystemProperties.set(PROP_CHARGE, String.valueOf(mode));
             Log.i(TAG, "charge mode " + mode);
         }
+    }
+
+    /** Looks at the app in front (main thread) and decides off the main thread if it's a game. */
+    private void checkTopApp() {
+        final ActivityManager.RunningTaskInfo task =
+                SystemServicesProxy.getInstance(mContext).getRunningTask();
+        final String pkg = task != null && task.topActivity != null
+                ? task.topActivity.getPackageName() : null;
+        mBgHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                final boolean game = pkg != null && isGame(pkg);
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (game != mGameOnTop) {
+                            mGameOnTop = game;
+                            Log.i(TAG, (game ? "game in front: " : "no game in front: ") + pkg);
+                            updateCharging();
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    /** Native libraries of the common game engines. */
+    private static final String[] GAME_ENGINES = {
+        "libunity.so", "libil2cpp.so", "libUE4.so", "libUnreal.so", "libgodot_android.so",
+        "libcocos2dcpp.so", "libcocos2djs.so", "libcocos2dlua.so", "libgdx.so",
+    };
+
+    private static boolean isEngineLib(String name) {
+        for (String e : GAME_ENGINES) {
+            if (e.equals(name)) return true;
+        }
+        return false;
+    }
+
+    /** A game: declared as one (android:isGame) or built on a game engine. Background thread. */
+    private boolean isGame(String pkg) {
+        final ApplicationInfo ai;
+        try {
+            ai = mContext.getPackageManager().getApplicationInfo(pkg, 0);
+        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
+            return false;
+        }
+        if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0 || ai.sourceDir == null) {
+            return false;       // launcher, Settings, KiroOS apps
+        }
+        synchronized (mGameCache) {
+            final Boolean known = mGameCache.get(ai.sourceDir);
+            if (known != null) return known;
+        }
+        final boolean game = (ai.flags & ApplicationInfo.FLAG_IS_GAME) != 0 || hasGameEngine(ai);
+        synchronized (mGameCache) {
+            mGameCache.put(ai.sourceDir, game);
+        }
+        return game;
+    }
+
+    private static boolean hasGameEngine(ApplicationInfo ai) {
+        if (ai.nativeLibraryDir != null) {
+            final String[] libs = new File(ai.nativeLibraryDir).list();
+            if (libs != null) {
+                for (String lib : libs) {
+                    if (isEngineLib(lib)) return true;
+                }
+            }
+        }
+        // libraries kept inside the APKs (extractNativeLibs=false, split config APKs)
+        final List<String> apks = new ArrayList<String>();
+        apks.add(ai.sourceDir);
+        if (ai.splitSourceDirs != null) {
+            for (String s : ai.splitSourceDirs) apks.add(s);
+        }
+        for (String apk : apks) {
+            try (ZipFile zip = new ZipFile(apk)) {
+                final Enumeration<? extends ZipEntry> entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    final String name = entries.nextElement().getName();
+                    if (name.startsWith("lib/")
+                            && isEngineLib(name.substring(name.lastIndexOf('/') + 1))) {
+                        return true;
+                    }
+                }
+            } catch (IOException | RuntimeException e) {
+                // unreadable APK: not a game as far as we can tell
+            }
+        }
+        return false;
     }
 }
