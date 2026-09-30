@@ -1257,8 +1257,12 @@ public class NotificationPanelView extends PanelView implements
                 mStatusBarState != StatusBarState.KEYGUARD && (!mQsExpanded
                         || mQsExpansionFromOverscroll));
         updateEmptyShadeView();
+        // KiroOS: the stock 96dp shadow for the navigation bar is invisible on the black panel
+        // and a grey band over the light one (and the S6 has no navigation bar): Dark only
+        final boolean light = (getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_NO;
         mQsNavbarScrim.setVisibility(mStatusBarState == StatusBarState.SHADE && mQsExpanded
-                && !mStackScrollerOverscrolling && mQsScrimEnabled
+                && !mStackScrollerOverscrolling && mQsScrimEnabled && !light
                         ? View.VISIBLE
                         : View.INVISIBLE);
         if (mKeyguardUserSwitcher != null && mQsExpanded && !mStackScrollerOverscrolling) {

@@ -166,4 +166,7 @@
     <color name="kiroos_panel_bg">#FF000000</color>
     <!-- the dim behind the pulled-down shade (alpha from ScrimController) -->
     <color name="kiroos_shade_scrim">#FF000000</color>
+    <!-- the tile editor: the "drag to add" area and the strip under it -->
+    <color name="kiroos_edit_drag_bg">#FF37474F</color><!-- material_blue_grey_800, as stock -->
+    <color name="kiroos_edit_nav_bg">#FF000000</color>
 </resources>

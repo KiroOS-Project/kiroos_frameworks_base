@@ -50,4 +50,10 @@
     <color name="kiroos_detail_row_active">#FFE3EEFC</color>
     <color name="kiroos_detail_row_stroke">#662F7BDA</color>
     <color name="kiroos_detail_icon_bg">#FFECECF1</color>
+    <!-- mobile data panel: the bar's track and the warning mark were white on the light sheet -->
+    <color name="data_usage_graph_track">#1F1C1C1E</color>
+    <color name="data_usage_graph_warning">#FF1C1C1E</color>
+    <!-- the tile editor (edit_theme in kiroos_light_styles.xml) -->
+    <color name="kiroos_edit_drag_bg">#FFE3E3EA</color>
+    <color name="kiroos_edit_nav_bg">#FFE3E3EA</color>
 </resources>

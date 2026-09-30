@@ -37,7 +37,8 @@ public class CustomizeTileView extends QSTileView {
         mLabelMinLines = mLabel.getMinLines();
         View view = LayoutInflater.from(mContext).inflate(R.layout.qs_tile_label, null);
         mAppLabel = (TextView) view.findViewById(R.id.tile_label);
-        mAppLabel.setTextColor(0xFFB0B0B5);
+        // KiroOS: qs_subhead is this grey on Dark and a darker grey on Light
+        mAppLabel.setTextColor(mContext.getColor(R.color.qs_subhead));
         mAppLabel.setAlpha(1.0f);
         mAppLabel.setSingleLine(true);
         addView(view);

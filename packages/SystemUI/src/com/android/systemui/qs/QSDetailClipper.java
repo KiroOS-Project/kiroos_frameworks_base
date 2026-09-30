@@ -33,7 +33,11 @@ public class QSDetailClipper {
 
     public QSDetailClipper(View detail) {
         mDetail = detail;
-        mBackground = (TransitionDrawable) detail.getBackground();
+        // KiroOS: the detail sheet's background is a plain shape now (a TransitionDrawable is
+        // kept by Android 7 across a Dark / Light switch, the sheet stayed black on Light):
+        // without a transition there is simply no background cross-fade
+        mBackground = detail.getBackground() instanceof TransitionDrawable
+                ? (TransitionDrawable) detail.getBackground() : null;
     }
 
     public void animateCircularClip(int x, int y, boolean in, AnimatorListener listener) {
@@ -63,7 +67,9 @@ public class QSDetailClipper {
             mAnimator.addListener(listener);
         }
         if (in) {
-            mBackground.startTransition((int)(mAnimator.getDuration() * 0.6));
+            if (mBackground != null) {
+                mBackground.startTransition((int)(mAnimator.getDuration() * 0.6));
+            }
             mAnimator.addListener(mVisibleOnStart);
         } else {
             mDetail.postDelayed(mReverseBackground, (long)(mAnimator.getDuration() * 0.65));
@@ -75,7 +81,7 @@ public class QSDetailClipper {
     private final Runnable mReverseBackground = new Runnable() {
         @Override
         public void run() {
-            if (mAnimator != null) {
+            if (mAnimator != null && mBackground != null) {
                 mBackground.reverseTransition((int)(mAnimator.getDuration() * 0.35));
             }
         }
@@ -96,7 +102,9 @@ public class QSDetailClipper {
         @Override
         public void onAnimationEnd(Animator animation) {
             mDetail.setVisibility(View.GONE);
-            mBackground.resetTransition();
+            if (mBackground != null) {
+                mBackground.resetTransition();
+            }
             mAnimator = null;
         };
     };

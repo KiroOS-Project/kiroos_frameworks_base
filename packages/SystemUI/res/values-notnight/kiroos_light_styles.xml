@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS light theme: the twins of the SystemUI styles that are dark by design.
+     QSCustomizer wraps its context in edit_theme when the quick settings are (re)inflated, so the
+     tile editor follows a Dark / Light switch like the rest of the control centre. -->
+<resources>
+    <!-- the tile editor: dark title / back arrow / overflow on the light sheet (they were white),
+         a light "drag to add" area instead of the stock blue grey -->
+    <style name="edit_theme" parent="@android:style/Theme.Material.Light">
+        <item name="android:colorSecondary">@color/kiroos_edit_drag_bg</item>
+        <item name="android:colorAccent">@color/kiroos_qs_accent_text</item>
+        <item name="android:colorBackground">?android:attr/colorSecondary</item>
+    </style>
+</resources>

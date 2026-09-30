@@ -131,6 +131,9 @@ public class BatteryTile extends QSTile<QSTile.State> implements BatteryControll
                         context.getColor(R.color.batterymeter_frame_color));
                 drawable.onBatteryLevelChanged(mLevel, mPluggedIn, mCharging);
                 drawable.onPowerSaveChanged(mPowerSave);
+                // KiroOS: the meter ignores the tile's icon tint (setColorFilter is a no-op), so
+                // it stayed white on the light theme's white circle: dark meter on the light theme
+                drawable.setDarkIntensity(kiroLightTheme(context) ? 1f : 0f);
                 return drawable;
             }
 
@@ -149,6 +152,13 @@ public class BatteryTile extends QSTile<QSTile.State> implements BatteryControll
                 + "," + mContext.getString(R.string.accessibility_battery_details);
         state.minimalAccessibilityClassName = state.expandedAccessibilityClassName
                 = Button.class.getName();
+    }
+
+    /** KiroOS: the light theme is on (uiMode night bit not set) */
+    private static boolean kiroLightTheme(Context context) {
+        return (context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                != android.content.res.Configuration.UI_MODE_NIGHT_YES;
     }
 
     @Override
@@ -216,6 +226,7 @@ public class BatteryTile extends QSTile<QSTile.State> implements BatteryControll
             mDrawable.onBatteryLevelChanged(100, false, false);
             mDrawable.onPowerSaveChanged(true);
             mDrawable.disableShowPercent();
+            mDrawable.setDarkIntensity(kiroLightTheme(mContext) ? 1f : 0f);
             ((ImageView) mCurrentView.findViewById(android.R.id.icon)).setImageDrawable(mDrawable);
             Checkable checkbox = (Checkable) mCurrentView.findViewById(android.R.id.toggle);
             checkbox.setChecked(mPowerSave);

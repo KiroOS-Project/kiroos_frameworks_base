@@ -182,11 +182,17 @@ public class QSDetailItems extends FrameLayout {
             view.setActivated(item.canDisconnect);
             final ImageView iv = (ImageView) view.findViewById(android.R.id.icon);
             iv.setImageResource(item.icon);
+            // KiroOS: the row icons are drawn white; tinted with the sheet's text colour they
+            // show on the light theme's pale circle too (they vanished into it)
+            final int iconColor = mContext.getColor(R.color.qs_text);
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(iconColor));
             iv.getOverlay().clear();
             if (item.overlay != null) {
-                item.overlay.setBounds(0, 0, item.overlay.getIntrinsicWidth(),
-                        item.overlay.getIntrinsicHeight());
-                iv.getOverlay().add(item.overlay);
+                final android.graphics.drawable.Drawable overlay = item.overlay.mutate();
+                overlay.setTint(iconColor);
+                overlay.setBounds(0, 0, overlay.getIntrinsicWidth(),
+                        overlay.getIntrinsicHeight());
+                iv.getOverlay().add(overlay);
             }
             final TextView title = (TextView) view.findViewById(android.R.id.title);
             title.setText(item.line1);

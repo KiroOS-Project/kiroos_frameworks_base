@@ -13,25 +13,14 @@ Copyright (C) 2014 The Android Open Source Project
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-<!-- KiroOS: same black rounded-bottom surface as the control center. Both layers are the
-     opaque panel colour: the switch to the second one (startTransition) belonged to the stock
-     circular reveal, which KiroOS doesn't use, so the see-through first layer stayed up and the
-     tiles showed through the sheet. Still a transition: QSDetailClipper casts to it. -->
-<transition xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape>
-            <solid android:color="@color/kiroos_panel_bg" />
-            <corners
-                android:bottomLeftRadius="@dimen/kiroos_panel_corner_radius"
-                android:bottomRightRadius="@dimen/kiroos_panel_corner_radius" />
-        </shape>
-    </item>
-    <item>
-        <shape>
-            <solid android:color="@color/kiroos_panel_bg" />
-            <corners
-                android:bottomLeftRadius="@dimen/kiroos_panel_corner_radius"
-                android:bottomRightRadius="@dimen/kiroos_panel_corner_radius" />
-        </shape>
-    </item>
-</transition>
+<!-- KiroOS: the control centre's opaque rounded-bottom surface, in the theme's colour.
+     A plain shape on purpose: as a <transition> (stock) Android 7 kept the cached drawable
+     across a Dark / Light switch, so after switching to Light every detail sheet (Wi-Fi,
+     Bluetooth, mobile data...) stayed black while its text turned dark. QSDetailClipper
+     works without a transition. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/kiroos_panel_bg" />
+    <corners
+        android:bottomLeftRadius="@dimen/kiroos_panel_corner_radius"
+        android:bottomRightRadius="@dimen/kiroos_panel_corner_radius" />
+</shape>

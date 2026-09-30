@@ -39,5 +39,5 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/navigation_bar_size"
         android:layout_gravity="bottom"
-        android:background="#ff000000" />
+        android:background="@color/kiroos_edit_nav_bg" />
 </merge>
