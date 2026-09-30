@@ -107,6 +107,37 @@ public class ToggleSlider extends RelativeLayout {
         }
     }
 
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        kiroStopTracking();
+    }
+
+    @Override
+    protected void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        if (visibility != VISIBLE) {
+            kiroStopTracking();
+        }
+    }
+
+    /**
+     * KiroOS: the slider went away (panel closed or hidden) while a finger held it, so it never
+     * got the release: end the drag here, or the brightness mirror stays on the screen.
+     */
+    private void kiroStopTracking() {
+        if (!mTracking) {
+            return;
+        }
+        mTracking = false;
+        if (mListener != null) {
+            mListener.onChanged(this, false, mToggle.isChecked(), mSlider.getProgress(), true);
+        }
+        if (mMirrorController != null) {
+            mMirrorController.hideMirror();
+        }
+    }
+
     public void setOnChangedListener(Listener l) {
         mListener = l;
     }

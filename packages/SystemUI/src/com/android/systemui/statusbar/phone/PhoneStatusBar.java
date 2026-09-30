@@ -3163,6 +3163,10 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                 1.0f /* speedUpFactor */);
 
         mNotificationPanel.closeQs();
+        // KiroOS: never leave the brightness mirror up over a closed panel
+        if (mBrightnessMirrorController != null) {
+            mBrightnessMirrorController.resetMirror();
+        }
 
         mExpandedVisible = false;
         visibilityChanged(false);

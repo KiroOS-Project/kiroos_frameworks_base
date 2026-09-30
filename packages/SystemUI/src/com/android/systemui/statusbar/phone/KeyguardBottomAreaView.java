@@ -438,7 +438,11 @@ public class KeyguardBottomAreaView extends FrameLayout implements View.OnClickL
             drawable = mContext.getDrawable(R.drawable.ic_mic_26dp);
             contentDescription = mContext.getString(R.string.accessibility_voice_assist_button);
         } else {
-            visible &= isPhoneVisible();
+            // KiroOS: no Phone shortcut in the bottom corner of the S6 edge / edge+: the thumb
+            // reaching for the home key (fingerprint) over the curved edge swiped it open. A
+            // shortcut chosen by the user still shows, emergency calls stay on the bouncer.
+            visible &= isPhoneVisible()
+                    && !"1".equals(android.os.SystemProperties.get("ro.kiroos.edge"));
             drawable = mContext.getDrawable(R.drawable.ic_phone_24dp);
             contentDescription = mContext.getString(R.string.accessibility_phone_button);
         }

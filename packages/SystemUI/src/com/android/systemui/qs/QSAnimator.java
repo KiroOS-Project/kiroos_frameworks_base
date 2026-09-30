@@ -61,6 +61,23 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
 
     private boolean mOnKeyguard;
 
+    // KiroOS: the grid comes in as a wave, row by row (see updateAnimators)
+    private static final float KIRO_ROW_SCALE = 0.7f;
+    private static final android.view.animation.Interpolator KIRO_WAVE =
+            new android.view.animation.PathInterpolator(0.2f, 0.8f, 0.2f, 1f);
+    /** eases out past the end and settles back: the small bounce of every row */
+    private static final android.view.animation.Interpolator KIRO_BACK =
+            new android.view.animation.PathInterpolator(0.34f, 1.45f, 0.64f, 1f);
+    private final android.util.SparseArray<TouchAnimator.Builder> mKiroRowBuilders =
+            new android.util.SparseArray<>();
+    private final android.util.SparseArray<TouchAnimator.Builder> mKiroRowAlphas =
+            new android.util.SparseArray<>();
+    private final ArrayList<TouchAnimator> mKiroRowAnimators = new ArrayList<>();
+    private final ArrayList<View> mKiroLayerViews = new ArrayList<>();
+    private boolean mKiroLayersOn;
+    private float mKiroRowRise;
+    private int mKiroFirstRow;
+
     private boolean mAllowFancy;
     private boolean mFullRows;
     private int mNumQuickTiles;
@@ -147,89 +164,74 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
         if (mQsPanel.getHost() == null) return;
         Collection<QSTile<?>> tiles = mQsPanel.getHost().getTiles();
         int count = 0;
-        int[] loc1 = new int[2];
-        int[] loc2 = new int[2];
-        int lastXDiff = 0;
-        int lastX = 0;
 
         clearAnimationState();
         mAllViews.clear();
         mTopFiveQs.clear();
+        mKiroLayerViews.clear();
+        mKiroRowBuilders.clear();
+        mKiroRowAlphas.clear();
+        mKiroRowAnimators.clear();
+        mKiroFirstRow = Integer.MAX_VALUE;
+        mKiroRowRise = 28 * mQsPanel.getResources().getDisplayMetrics().density;
 
         mAllViews.add((View) mQsPanel.getTileLayout());
 
+        // KiroOS: the quick row doesn't fly into the grid (the stock animation): its tiles fade
+        // out as the panel opens, and the whole grid comes in as a wave from the top, row by
+        // row, each row dropping in and growing into place with a small bounce. Wi-Fi and
+        // Bluetooth are the wide tiles above the brightness bar (no grid tile).
+        final TouchAnimator.Builder quickFade = new TouchAnimator.Builder();
+        int gridIndex = 0;
         for (QSTile<?> tile : tiles) {
             QSTileBaseView tileView = mQsPanel.getTileView(tile);
-            if (tileView == null) {
-                // KiroOS: Wi-Fi and Bluetooth are the wide tiles above the brightness bar: their
-                // quick tiles fade out instead of flying into the grid
-                if (count < mNumQuickTiles && mAllowFancy) {
-                    final QSTileBaseView quick = mQuickQsPanel.getTileView(tile);
-                    if (quick != null) {
-                        firstPageBuilder.addFloat(quick, "alpha", 1, 0);
-                        mAllViews.add(quick);
-                    }
+            if (count < mNumQuickTiles && mAllowFancy) {
+                final QSTileBaseView quick = mQuickQsPanel.getTileView(tile);
+                if (quick != null) {
+                    quickFade.addFloat(quick, "alpha", 1, 0);
+                    mAllViews.add(quick);
                 }
-                count++;
+            }
+            count++;
+            if (tileView == null) {
                 continue;
             }
             final TextView label = ((QSTileView) tileView).getLabel();
-            final View tileIcon = tileView.getIcon().getIconView();
-            if (count < mNumQuickTiles && mAllowFancy) {
-                // Quick tiles.
-                QSTileBaseView quickTileView = mQuickQsPanel.getTileView(tile);
-
-                lastX = loc1[0];
-                getRelativePosition(loc1, quickTileView.getIcon(), mQsContainer);
-                getRelativePosition(loc2, tileIcon, mQsContainer);
-                final int xDiff = loc2[0] - loc1[0];
-                final int yDiff = loc2[1] - loc1[1];
-                lastXDiff = loc1[0] - lastX;
-                // Move the quick tile right from its location to the new one.
-                translationXBuilder.addFloat(quickTileView, "translationX", 0, xDiff);
-                translationYBuilder.addFloat(quickTileView, "translationY", 0, yDiff);
-
-                // Counteract the parent translation on the tile. So we have a static base to
-                // animate the label position off from.
-                firstPageBuilder.addFloat(tileView, "translationY", mQsPanel.getHeight(), 0);
-
-                // Move the real tile's label from the quick tile position to its final
-                // location.
-                translationXBuilder.addFloat(label, "translationX", -xDiff, 0);
-                translationYBuilder.addFloat(label, "translationY", -yDiff, 0);
-
-                mTopFiveQs.add(tileView.getIcon());
-                mAllViews.add(tileView.getIcon());
-                mAllViews.add(quickTileView);
-            } else if (mFullRows && isIconInAnimatedRow(count)) {
-                // TODO: Refactor some of this, it shares a lot with the above block.
-                // Move the last tile position over by the last difference between quick tiles.
-                // This makes the extra icons seems as if they are coming from positions in the
-                // quick panel.
-                loc1[0] += lastXDiff;
-                getRelativePosition(loc2, tileIcon, mQsContainer);
-                final int xDiff = loc2[0] - loc1[0];
-                final int yDiff = loc2[1] - loc1[1];
-
-                firstPageBuilder.addFloat(tileView, "translationY", mQsPanel.getHeight(), 0);
-                translationXBuilder.addFloat(tileView, "translationX", -xDiff, 0);
-                translationYBuilder.addFloat(label, "translationY", -yDiff, 0);
-                translationYBuilder.addFloat(tileIcon, "translationY", -yDiff, 0);
-
-                mAllViews.add(tileIcon);
-            } else {
-                firstPageBuilder.addFloat(tileView, "alpha", 0, 1);
-            }
+            kiroRowAlpha(gridIndex).addFloat(tileView, "alpha", 0, 1);
+            kiroRow(gridIndex).addFloat(tileView, "scaleX", KIRO_ROW_SCALE, 1)
+                    .addFloat(tileView, "scaleY", KIRO_ROW_SCALE, 1)
+                    .addFloat(tileView, "translationY", -mKiroRowRise, 0);
+            mKiroLayerViews.add(tileView);
             mAllViews.add(tileView);
             mAllViews.add(label);
-            count++;
+            gridIndex++;
         }
         if (mAllowFancy) {
-            // KiroOS: the wide Wi-Fi / Bluetooth tiles rise with the panel and fade in
+            // KiroOS: the grid stays in its final place while the panel slides in (like the
+            // Wi-Fi / Bluetooth row and the brightness bar below), so only the wave moves it and
+            // it never slides across the rows above
+            firstPageBuilder.addFloat((View) mQsPanel.getTileLayout(), "translationY",
+                    mQsPanel.getHeight(), 0);
+            // KiroOS: the wide Wi-Fi / Bluetooth tiles rise with the panel and open out wide
+            // ahead of the tile wave
             final View conn = mQsPanel.getConnectivityRow();
             if (conn != null) {
                 firstPageBuilder.addFloat(conn, "translationY", mQsPanel.getHeight(), 0);
-                firstPageBuilder.addFloat(conn, "alpha", 0, 1);
+                mKiroRowAnimators.add(new TouchAnimator.Builder()
+                        .addFloat(conn, "alpha", 0, 1)
+                        .setStartDelay(0.02f)
+                        .setEndDelay(0.65f)
+                        .setInterpolator(KIRO_WAVE)
+                        .build());
+                // no drop: it starts right under the header, which would hide it
+                mKiroRowAnimators.add(new TouchAnimator.Builder()
+                        .addFloat(conn, "scaleX", 0.82f, 1)
+                        .addFloat(conn, "scaleY", 0.82f, 1)
+                        .setStartDelay(0.02f)
+                        .setEndDelay(0.46f)
+                        .setInterpolator(KIRO_BACK)
+                        .build());
+                mKiroLayerViews.add(conn);
                 mAllViews.add(conn);
             }
             // Make brightness appear static position and alpha in through second half.
@@ -238,20 +240,43 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
                 firstPageBuilder.addFloat(brightness, "translationY", mQsPanel.getHeight(), 0);
                 mBrightnessAnimator = new TouchAnimator.Builder()
                         .addFloat(brightness, "alpha", 0, 1)
-                        .setStartDelay(.5f)
+                        .addFloat(brightness, "scaleX", 0.7f, 1)
+                        .setStartDelay(.08f)
+                        .setEndDelay(.4f)
+                        .setInterpolator(KIRO_BACK)
                         .build();
+                mKiroLayerViews.add(brightness);
                 mAllViews.add(brightness);
             } else {
                 mBrightnessAnimator = null;
             }
+            mKiroRowAnimators.add(quickFade.setEndDelay(0.7f).setInterpolator(KIRO_WAVE).build());
             mFirstPageAnimator = firstPageBuilder
                     .setListener(this)
                     .build();
-            // Fade in the tiles/labels as we reach the final position.
+            // KiroOS: the tiles come in with the wave above, so only the footer fades at the end
+            // (the whole grid used to stay hidden until 86% and then appear at once)
             mFirstPageDelayedAnimator = new TouchAnimator.Builder()
                     .setStartDelay(EXPANDED_TILE_DELAY)
-                    .addFloat(mQsPanel.getTileLayout(), "alpha", 0, 1)
                     .addFloat(mQsPanel.getFooter().getView(), "alpha", 0, 1).build();
+            for (int i = 0; i < mKiroRowBuilders.size(); i++) {
+                final int row = mKiroRowBuilders.keyAt(i);
+                // the first grid row starts as soon as the panel moves, then one every 13%
+                final float start = Math.min(0.55f, 0.12f + 0.13f * (row - mKiroFirstRow));
+                mKiroRowAnimators.add(mKiroRowBuilders.valueAt(i)
+                        .setStartDelay(start)
+                        .setEndDelay(Math.max(0f, 1f - (start + 0.45f)))
+                        .setInterpolator(KIRO_BACK)
+                        .build());
+                final TouchAnimator.Builder alpha = mKiroRowAlphas.get(row);
+                if (alpha != null) {
+                    mKiroRowAnimators.add(alpha
+                            .setStartDelay(start)
+                            .setEndDelay(Math.max(0f, 1f - (start + 0.28f)))
+                            .setInterpolator(KIRO_WAVE)
+                            .build());
+                }
+            }
             mAllViews.add(mQsPanel.getFooter().getView());
             float px = 0;
             float py = 1;
@@ -271,6 +296,31 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
                 .setListener(mNonFirstPageListener)
                 .setEndDelay(.5f)
                 .build();
+    }
+
+    /** KiroOS: the wave's motion (scale, drop) for the grid row of tile #index */
+    private TouchAnimator.Builder kiroRow(int index) {
+        return kiroRowBuilder(mKiroRowBuilders, index);
+    }
+
+    /** KiroOS: the wave's fade for the grid row of tile #index (quicker than the motion) */
+    private TouchAnimator.Builder kiroRowAlpha(int index) {
+        return kiroRowBuilder(mKiroRowAlphas, index);
+    }
+
+    private TouchAnimator.Builder kiroRowBuilder(
+            android.util.SparseArray<TouchAnimator.Builder> rows, int index) {
+        final int columns = mPagedLayout != null ? Math.max(1, mPagedLayout.getColumnCount()) : 3;
+        final int row = index / columns;
+        if (row < mKiroFirstRow) {
+            mKiroFirstRow = row;
+        }
+        TouchAnimator.Builder b = rows.get(row);
+        if (b == null) {
+            b = new TouchAnimator.Builder();
+            rows.put(row, b);
+        }
+        return b;
     }
 
     private boolean isIconInAnimatedRow(int count) {
@@ -313,6 +363,9 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
             if (mBrightnessAnimator != null) {
                 mBrightnessAnimator.setPosition(position);
             }
+            for (int i = 0; i < mKiroRowAnimators.size(); i++) {
+                mKiroRowAnimators.get(i).setPosition(position);
+            }
         } else {
             mNonfirstPageAnimator.setPosition(position);
         }
@@ -321,6 +374,7 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
     @Override
     public void onAnimationAtStart() {
         mQuickQsPanel.setVisibility(View.VISIBLE);
+        kiroLayers(false);
     }
 
     @Override
@@ -330,6 +384,7 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
         for (int i = 0; i < N; i++) {
             mTopFiveQs.get(i).setVisibility(View.VISIBLE);
         }
+        kiroLayers(false);
     }
 
     @Override
@@ -340,10 +395,28 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
             for (int i = 0; i < N; i++) {
                 mTopFiveQs.get(i).setVisibility(View.INVISIBLE);
             }
+            kiroLayers(mAllowFancy);
+        }
+    }
+
+    /**
+     * KiroOS: while the panel opens, every moving tile / row is a hardware layer, drawn once and
+     * then only moved and faded by the GPU (at 1440 x 2560 a see-through tile was redrawn off
+     * screen in every frame); plain views again once the panel is fully open or closed.
+     */
+    private void kiroLayers(boolean on) {
+        if (mKiroLayersOn == on) {
+            return;
+        }
+        mKiroLayersOn = on;
+        final int type = on ? View.LAYER_TYPE_HARDWARE : View.LAYER_TYPE_NONE;
+        for (int i = 0; i < mKiroLayerViews.size(); i++) {
+            mKiroLayerViews.get(i).setLayerType(type, null);
         }
     }
 
     private void clearAnimationState() {
+        kiroLayers(false);
         final int N = mAllViews.size();
         mQuickQsPanel.setAlpha(0);
         for (int i = 0; i < N; i++) {
@@ -351,6 +424,8 @@ public class QSAnimator implements Callback, PageListener, Listener, OnLayoutCha
             v.setAlpha(1);
             v.setTranslationX(0);
             v.setTranslationY(0);
+            v.setScaleX(1);
+            v.setScaleY(1);
         }
         final int N2 = mTopFiveQs.size();
         for (int i = 0; i < N2; i++) {

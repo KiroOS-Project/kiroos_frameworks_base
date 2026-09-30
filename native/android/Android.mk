@@ -17,6 +17,7 @@ LOCAL_SRC_FILES:= \
     obb.cpp \
     sensor.cpp \
     storage_manager.cpp \
+    thermal.cpp \
     trace.cpp \
 
 LOCAL_SHARED_LIBRARIES := \

@@ -66,6 +66,7 @@ public class QSDetail extends LinearLayout {
     private TextView mKiroSubtitle;
     private final GradientDrawable mKiroIconShape = new GradientDrawable();
     private static final PathInterpolator KIRO_SHEET_IN = new PathInterpolator(0.2f, 0.9f, 0.1f, 1f);
+    private android.animation.ObjectAnimator mKiroFade;
 
     private QSTileHost mHost;
 
@@ -291,20 +292,34 @@ public class QSDetail extends LinearLayout {
                 : R.color.qs_text));
     }
 
+    /**
+     * KiroOS: the sheet is opaque from the first frame and grows out of its tile; only what's on
+     * it fades in (a see-through sheet showed the tiles behind it). Closing, it shrinks back and
+     * fades only at the very end.
+     */
     private void kiroAnimateSheet(int x, int y, final boolean open,
             final AnimatorListener listener) {
         animate().cancel();
+        if (mKiroFade != null) {
+            mKiroFade.cancel();
+        }
         setPivotX(Math.max(0, Math.min(getWidth(), x)));
         setPivotY(Math.max(0, Math.min(getHeight(), y)));
         if (open) {
             mClosingDetail = false;
-            setAlpha(0f);
-            setScaleX(0.9f);
-            setScaleY(0.9f);
-            animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(340)
+            setAlpha(1f);
+            setScaleX(0.92f);
+            setScaleY(0.92f);
+            kiroFadeContent(0f, 1f, 70, 220);
+            animate().scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(320)
                     .setInterpolator(KIRO_SHEET_IN).setListener(listener).start();
         } else {
-            animate().alpha(0f).scaleX(0.94f).scaleY(0.94f).setStartDelay(0).setDuration(200)
+            kiroFadeContent(1f, 0f, 0, 110);
+            mKiroFade = android.animation.ObjectAnimator.ofFloat(this, View.ALPHA, 1f, 0f);
+            mKiroFade.setStartDelay(120);
+            mKiroFade.setDuration(90);
+            mKiroFade.start();
+            animate().scaleX(0.94f).scaleY(0.94f).setStartDelay(0).setDuration(210)
                     .setInterpolator(Interpolators.FAST_OUT_LINEAR_IN)
                     .setListener(new AnimatorListenerAdapter() {
                         private boolean mCancelled;
@@ -327,6 +342,21 @@ public class QSDetail extends LinearLayout {
                             }
                         }
                     }).start();
+        }
+    }
+
+    /** KiroOS: fades what's on the sheet (header, list, buttons), never the scan progress bar */
+    private void kiroFadeContent(float from, float to, long delay, long duration) {
+        for (int i = 0; i < getChildCount(); i++) {
+            final View child = getChildAt(i);
+            if (child == mQsDetailHeaderProgress) {
+                continue;
+            }
+            child.animate().cancel();
+            child.setAlpha(from);
+            child.animate().alpha(to).setStartDelay(delay).setDuration(duration)
+                    .setInterpolator(to > from ? Interpolators.ALPHA_IN : Interpolators.ALPHA_OUT)
+                    .start();
         }
     }
 

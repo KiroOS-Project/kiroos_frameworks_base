@@ -41,7 +41,34 @@ class BaseErrorDialog extends AlertDialog {
         WindowManager.LayoutParams attrs = getWindow().getAttributes();
         attrs.setTitle("Error Dialog");
         getWindow().setAttributes(attrs);
-        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF000000));
+        getWindow().setBackgroundDrawable(kiroCard(getContext()));
+    }
+
+    /**
+     * KiroOS: the card of the power menu (GlobalActions) - rounded, #181818 in the dark theme and
+     * white in the light one, 16dp from the screen edges. A plain black window disappeared into
+     * black screens behind it (the text seemed to float) and hid the dark text of the light theme.
+     */
+    private static android.graphics.drawable.Drawable kiroCard(Context context) {
+        final boolean light = (context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_NO;
+        final android.graphics.drawable.GradientDrawable card =
+                new android.graphics.drawable.GradientDrawable();
+        card.setColor(light ? 0xFFFFFFFF : 0xFF181818);
+        final float density = context.getResources().getDisplayMetrics().density;
+        card.setCornerRadius((int) (16 * density + 0.5f));
+        final int inset = (int) (16 * density + 0.5f);
+        return new android.graphics.drawable.InsetDrawable(card, inset, inset, inset, inset);
+    }
+
+    @Override
+    public void show() {
+        super.show();
+        // keep the pressed state of the rows inside the rounded card, like the power menu
+        if (getWindow() != null) {
+            getWindow().getDecorView().setClipToOutline(true);
+        }
     }
 
     public void onStart() {

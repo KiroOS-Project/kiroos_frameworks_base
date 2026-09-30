@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar;
 
 import android.app.ActivityManager;
+import android.app.admin.DevicePolicyManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -38,6 +39,7 @@ import android.util.Log;
 import android.view.View;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.internal.widget.LockPatternUtils;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.systemui.R;
@@ -77,6 +79,7 @@ public class KeyguardIndicationController {
     private int mChargingSpeed;
     private int mChargingWattage;
     private String mMessageToShowOnScreenOn;
+    private LockPatternUtils mLockPatternUtils;
 
     public KeyguardIndicationController(Context context, KeyguardIndicationTextView textView,
                                         LockIcon lockIcon) {
@@ -159,6 +162,7 @@ public class KeyguardIndicationController {
 
     private void updateIndication() {
         if (mVisible) {
+            String restart;
             // Walk down a precedence-ordered list of what should indication
             // should be shown based on user or device state
             if (!mUserManager.isUserUnlocked(ActivityManager.getCurrentUser())) {
@@ -168,6 +172,10 @@ public class KeyguardIndicationController {
             } else if (!TextUtils.isEmpty(mTransientIndication)) {
                 mTextView.switchIndication(mTransientIndication);
                 mTextView.setTextColor(mTransientTextColor);
+
+            } else if ((restart = kiroRestartIndication()) != null) {
+                mTextView.switchIndication(restart);
+                mTextView.setTextColor(Color.WHITE);
 
             } else if (mPowerPluggedIn) {
                 String indication = computePowerIndication();
@@ -181,6 +189,33 @@ public class KeyguardIndicationController {
                 mTextView.switchIndication(mRestingIndication);
                 mTextView.setTextColor(Color.WHITE);
             }
+        }
+    }
+
+    /**
+     * KiroOS: after a restart Android accepts the fingerprint only once the PIN (pattern,
+     * password) has been entered: say so, otherwise the sensor just seems not to work.
+     */
+    private String kiroRestartIndication() {
+        final KeyguardUpdateMonitor monitor = KeyguardUpdateMonitor.getInstance(mContext);
+        final int user = ActivityManager.getCurrentUser();
+        if (!monitor.isUnlockWithFingerprintPossible(user)
+                || monitor.getStrongAuthTracker().hasUserAuthenticatedSinceBoot()) {
+            return null;
+        }
+        if (mLockPatternUtils == null) {
+            mLockPatternUtils = new LockPatternUtils(mContext);
+        }
+        switch (mLockPatternUtils.getKeyguardStoredPasswordQuality(user)) {
+            case DevicePolicyManager.PASSWORD_QUALITY_SOMETHING:
+                return mContext.getString(
+                        com.android.keyguard.R.string.kg_prompt_reason_restart_pattern);
+            case DevicePolicyManager.PASSWORD_QUALITY_NUMERIC:
+            case DevicePolicyManager.PASSWORD_QUALITY_NUMERIC_COMPLEX:
+                return mContext.getString(com.android.keyguard.R.string.kg_prompt_reason_restart_pin);
+            default:
+                return mContext.getString(
+                        com.android.keyguard.R.string.kg_prompt_reason_restart_password);
         }
     }
 

@@ -198,13 +198,12 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
 
     public void setBrightnessMirror(BrightnessMirrorController c) {
         mBrightnessMirrorController = c;
-        ToggleSlider brightnessSlider = (ToggleSlider) findViewById(R.id.brightness_slider);
-        ToggleSlider mirror = (ToggleSlider) c.getMirror().findViewById(R.id.brightness_slider);
         mMirrorAutoBrightnessView = (ImageView) c.getMirror().findViewById(R.id.brightness_icon);
         mMirrorAutoBrightnessView.setVisibility(mAutoBrightnessView.getVisibility()
                     == View.VISIBLE ? View.INVISIBLE : View.GONE);
-        brightnessSlider.setMirror(mirror);
-        brightnessSlider.setMirrorController(c);
+        // KiroOS: no brightness mirror. Stock Android hides the whole panel while the slider is
+        // dragged and leaves a copy of the bar floating over the app, which looked like a bar
+        // stuck on the screen: the control centre stays in place and only the bar moves.
     }
 
     View getBrightnessView() {

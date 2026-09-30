@@ -41,6 +41,7 @@ public class BrightnessMirrorController {
     private final View mNotificationPanel;
     private final int[] mInt2Cache = new int[2];
     private View mBrightnessMirror;
+    private boolean mShowing;
 
     public BrightnessMirrorController(StatusBarWindowView statusBarWindow) {
         mStatusBarWindow = statusBarWindow;
@@ -52,6 +53,8 @@ public class BrightnessMirrorController {
     }
 
     public void showMirror() {
+        mShowing = true;
+        mBrightnessMirror.removeCallbacks(mHideFallback);
         mBrightnessMirror.setVisibility(View.VISIBLE);
         mStackScroller.setFadingOut(true);
         mScrimBehind.animateViewAlpha(0.0f, TRANSITION_DURATION_OUT, Interpolators.ALPHA_OUT);
@@ -60,17 +63,51 @@ public class BrightnessMirrorController {
     }
 
     public void hideMirror() {
+        mShowing = false;
         mScrimBehind.animateViewAlpha(1.0f, TRANSITION_DURATION_IN, Interpolators.ALPHA_IN);
         inAnimation(mNotificationPanel.animate())
                 .withLayer()
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        mBrightnessMirror.setVisibility(View.INVISIBLE);
-                        mStackScroller.setFadingOut(false);
-                    }
-                });
+                .withEndAction(mFinishHide);
+        // KiroOS: the end action belongs to the panel's animator, and another animation of the
+        // panel replaces it: the mirror then stayed over everything, with the panel invisible
+        // behind it. If it's still up once the fade is surely over, finish on our own.
+        mBrightnessMirror.removeCallbacks(mHideFallback);
+        mBrightnessMirror.postDelayed(mHideFallback, TRANSITION_DURATION_IN + 150);
     }
+
+    /** KiroOS: the panel closed while the slider was held: put everything back at once. */
+    public void resetMirror() {
+        if (!mShowing && mBrightnessMirror.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        mShowing = false;
+        mNotificationPanel.animate().cancel();
+        mHideFallback.run();
+    }
+
+    private final Runnable mFinishHide = new Runnable() {
+        @Override
+        public void run() {
+            if (mShowing) {
+                return;  // the slider was grabbed again
+            }
+            mBrightnessMirror.setVisibility(View.INVISIBLE);
+            mStackScroller.setFadingOut(false);
+        }
+    };
+
+    private final Runnable mHideFallback = new Runnable() {
+        @Override
+        public void run() {
+            mBrightnessMirror.removeCallbacks(this);
+            if (mShowing || mBrightnessMirror.getVisibility() != View.VISIBLE) {
+                return;
+            }
+            mFinishHide.run();
+            mNotificationPanel.setAlpha(1f);
+            mScrimBehind.setViewAlpha(1f);
+        }
+    };
 
     private ViewPropertyAnimator outAnimation(ViewPropertyAnimator a) {
         return a.alpha(0.0f)
