@@ -43,10 +43,13 @@
             </intent-filter>
         </activity>
 
+        <!-- KiroOS: no "Files" icon in the app drawer, Kiro Files is the file manager; the
+             system picker (Open / Save, attachments) stays -->
         <activity
             android:name=".LauncherActivity"
             android:label="@string/app_label"
             android:icon="@mipmap/ic_launcher_filemanager"
+            android:enabled="false"
             android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
