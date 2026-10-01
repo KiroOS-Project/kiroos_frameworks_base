@@ -200,6 +200,7 @@ final class UiModeManagerService extends SystemService {
 
         final int defaultNightMode = res.getInteger(
                 com.android.internal.R.integer.config_defaultNightMode);
+        kiroKeepDarkOfOldDefault(context);
         mNightMode = Settings.Secure.getInt(context.getContentResolver(),
                 Settings.Secure.UI_NIGHT_MODE, defaultNightMode);
 
@@ -210,6 +211,33 @@ final class UiModeManagerService extends SystemService {
         }
 
         publishBinderService(Context.UI_MODE_SERVICE, mService);
+    }
+
+    /** set once the check below has run on this phone */
+    private static final String KIRO_THEME_DEFAULT_CHECKED = "kiroos_theme_default_checked";
+
+    /**
+     * KiroOS 2.1.1: new phones start on the light theme (config_defaultNightMode = 1, it was
+     * 2). A phone already set up whose theme was never picked shows dark only because dark
+     * was the old default; it keeps dark: the night mode is written for it, once, on the first
+     * start after the update. A new phone is not set up yet then, and starts light.
+     */
+    private static void kiroKeepDarkOfOldDefault(Context context) {
+        final android.content.ContentResolver cr = context.getContentResolver();
+        try {
+            if (Settings.Secure.getInt(cr, KIRO_THEME_DEFAULT_CHECKED, 0) != 0) {
+                return;
+            }
+            if (Settings.Secure.getString(cr, Settings.Secure.UI_NIGHT_MODE) == null
+                    && Settings.Global.getInt(cr, Settings.Global.DEVICE_PROVISIONED, 0) != 0) {
+                Settings.Secure.putInt(cr, Settings.Secure.UI_NIGHT_MODE,
+                        UiModeManager.MODE_NIGHT_YES);
+                Slog.i(TAG, "set up on the old dark default: night mode kept");
+            }
+            Settings.Secure.putInt(cr, KIRO_THEME_DEFAULT_CHECKED, 1);
+        } catch (RuntimeException e) {
+            Slog.w(TAG, "theme default check failed", e);
+        }
     }
 
     private final IBinder mService = new IUiModeManager.Stub() {
