@@ -1040,6 +1040,40 @@ bool BootAnimation::movie()
     return false;
 }
 
+// KiroOS Beta 3: the optimisation phase after an update. PackageManager publishes
+// sys.kiroos.boot_progress (0-100) while it verifies the apps and compiles the ones that draw the
+// UI; a bar under the wordmark fills with it. Nothing is drawn on a normal boot (no property).
+static void kiroDrawBootProgress(int screenH, int animX, int animY, float scale)
+{
+    char value[PROPERTY_VALUE_MAX];
+    if (property_get("sys.kiroos.boot_progress", value, "") <= 0) {
+        return;
+    }
+    int pct = atoi(value);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    // animation coordinates (1440x2560): centred, about 90 px under the wordmark's baseline
+    const int bw = (int)(560 * scale);
+    const int bh = (int)(10 * scale) > 2 ? (int)(10 * scale) : 2;
+    const int bx = animX + (int)(440 * scale);
+    const int by = animY + (int)(1430 * scale);
+    const int glY = screenH - (by + bh);
+    GLfloat saved[4];
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, saved);
+    glEnable(GL_SCISSOR_TEST);
+    glClearColor(0.17f, 0.17f, 0.18f, 1.0f);                          // track
+    glScissor(bx, glY, bw, bh);
+    glClear(GL_COLOR_BUFFER_BIT);
+    const int fw = bw * pct / 100;
+    if (fw > 0) {
+        glClearColor(0x39 / 255.0f, 0x87 / 255.0f, 0xE5 / 255.0f, 1.0f);  // KiroOS blue
+        glScissor(bx, glY, fw, bh);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(saved[0], saved[1], saved[2], saved[3]);
+}
+
 bool BootAnimation::playAnimation(const Animation& animation)
 {
     const size_t pcount = animation.parts.size();
@@ -1178,6 +1212,7 @@ bool BootAnimation::playAnimation(const Animation& animation)
                 if (mClockEnabled && mTimeIsAccurate && validClock(part)) {
                     drawClock(animation.clockFont, part.clockPosX, part.clockPosY);
                 }
+                kiroDrawBootProgress(mHeight, animationX, animationY, scale);
 
                 eglSwapBuffers(mDisplay, mSurface);
 

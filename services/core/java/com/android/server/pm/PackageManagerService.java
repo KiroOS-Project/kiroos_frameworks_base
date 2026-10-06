@@ -7438,10 +7438,36 @@ public class PackageManagerService extends IPackageManager.Stub {
         synchronized (mPackages) {
             pkgs = PackageManagerServiceUtils.getPackagesForDexopt(mPackages.values(), this);
         }
+        // KiroOS Beta 3: before the home screen only what runs at once is prepared: the
+        // persistent apps (started with the system) and the ones that draw the UI (compiled
+        // with "speed" just below). Every other app runs from its APK until kiroos_dexopt.sh
+        // compiles it in the background half a minute after boot. Verifying all of them here,
+        // one dex2oat run after another (each update's new boot image invalidates every app),
+        // kept the S6 on the boot animation for over two minutes.
+        if (!causePrunedCache) {
+            final List<PackageParser.Package> now = new ArrayList<>();
+            for (PackageParser.Package pkg : pkgs) {
+                if ((pkg.applicationInfo.flags & ApplicationInfo.FLAG_PERSISTENT) != 0) {
+                    now.add(pkg);
+                }
+            }
+            Slog.i(TAG, "KiroOS boot phase: " + now.size() + " persistent apps now, "
+                    + (pkgs.size() - now.size()) + " after boot (kiroos_dexopt)");
+            pkgs = now;
+        }
 
         final long startTime = System.nanoTime();
+        // KiroOS Beta 3: the boot animation draws this phase as a bar under the logo
+        // (sys.kiroos.boot_progress, 0-100): every app is verified, then the apps that draw the
+        // UI are compiled with "speed", so the phone is fluid as soon as it starts instead of
+        // compiling them in the background in its first minutes.
+        mKiroBootSteps = pkgs.size() + KIRO_BOOT_SPEED_PACKAGES.length * KIRO_BOOT_SPEED_WEIGHT;
+        mKiroBootStep = 0;
+        kiroBootProgress();
         final int[] stats = performDexOptUpgrade(pkgs, mIsPreNUpgrade /* showDialog */,
                     getCompilerFilterForReason(causeFirstBoot ? REASON_FIRST_BOOT : REASON_BOOT));
+        kiroBootCompileUi();
+        SystemProperties.set("sys.kiroos.boot_progress", "100");
 
         final int elapsedTimeSeconds =
                 (int) TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
@@ -7451,6 +7477,46 @@ public class PackageManagerService extends IPackageManager.Stub {
         MetricsLogger.histogram(mContext, "opt_dialog_num_failed", stats[2]);
         MetricsLogger.histogram(mContext, "opt_dialog_num_total", getOptimizablePackages().size());
         MetricsLogger.histogram(mContext, "opt_dialog_time_s", elapsedTimeSeconds);
+    }
+
+    /** KiroOS: the apps drawing the UI, compiled with "speed" in the boot phase after an update */
+    private static final String[] KIRO_BOOT_SPEED_PACKAGES = {
+        "com.android.systemui", "com.kiroos.home", "com.android.inputmethod.latin",
+        "com.android.settings",
+    };
+    /** one of them weighs like this many verified apps on the boot bar */
+    private static final int KIRO_BOOT_SPEED_WEIGHT = 12;
+    private int mKiroBootSteps;
+    private int mKiroBootStep;
+    private int mKiroBootPercent = -1;
+
+    private void kiroBootProgress() {
+        if (mKiroBootSteps <= 0) {
+            return;
+        }
+        final int percent = Math.min(99, mKiroBootStep * 100 / mKiroBootSteps);
+        if (percent != mKiroBootPercent) {
+            mKiroBootPercent = percent;
+            SystemProperties.set("sys.kiroos.boot_progress", String.valueOf(percent));
+        }
+    }
+
+    private void kiroBootCompileUi() {
+        for (String packageName : KIRO_BOOT_SPEED_PACKAGES) {
+            final boolean present;
+            synchronized (mPackages) {
+                present = mPackages.containsKey(packageName);
+            }
+            if (present) {
+                final long start = SystemClock.uptimeMillis();
+                final int status = performDexOptTraced(packageName, false /* checkProfiles */,
+                        "speed", false /* force */);
+                Slog.i(TAG, "KiroOS boot phase: " + packageName + " compiled (speed) in "
+                        + (SystemClock.uptimeMillis() - start) + " ms, status " + status);
+            }
+            mKiroBootStep += KIRO_BOOT_SPEED_WEIGHT;
+            kiroBootProgress();
+        }
     }
 
     /**
@@ -7470,6 +7536,8 @@ public class PackageManagerService extends IPackageManager.Stub {
 
         for (PackageParser.Package pkg : pkgs) {
             numberOfPackagesVisited++;
+            mKiroBootStep++;
+            kiroBootProgress();
 
             if (!PackageDexOptimizer.canOptimizePackage(pkg)) {
                 if (DEBUG_DEXOPT) {
