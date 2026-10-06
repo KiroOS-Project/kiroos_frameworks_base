@@ -164,6 +164,9 @@
 
     <!-- KiroOS: the quick settings panel and its detail views (the light theme: values-notnight) -->
     <color name="kiroos_panel_bg">#FF000000</color>
+    <!-- KiroOS: volume dialog (light twins in values-notnight) -->
+    <color name="kiroos_volume_bg">#FF1C1C1E</color>
+    <color name="kiroos_volume_text">#FFFFFFFF</color>
     <!-- the dim behind the pulled-down shade (alpha from ScrimController) -->
     <color name="kiroos_shade_scrim">#FF000000</color>
     <!-- the tile editor: the "drag to add" area and the strip under it -->

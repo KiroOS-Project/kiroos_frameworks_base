@@ -30,6 +30,7 @@ import android.graphics.PixelFormat;
 import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.Process;
+import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -84,6 +85,8 @@ public class KiroGuardian extends SystemUI {
     private static final String PROP_CHARGE = "sys.kiroos.guard.charge";
     /** 1 screen on, 0 off: kiroos_perf.sh lifts the clock floors while the screen is off */
     private static final String PROP_SCREEN = "sys.kiroos.guard.screen";
+    /** any new value: init saves the battery capacity the kernel learned (kiroos_battcap) */
+    private static final String PROP_BATTCAP = "sys.kiroos.guard.battcap";
     static final String KEY_CHARGE_LIMIT = "kiroos_charge_limit";
     static final String KEY_BYPASS = "kiroos_bypass_charging";
     private static final int NOTIFICATION_ID = 0x4b47; // "KG"
@@ -92,6 +95,8 @@ public class KiroGuardian extends SystemUI {
     private int mStage;
     private int mTemp;          // tenths of a degree
     private int mLevel = -1;
+    private int mLastLevel = -1;
+    private long mLastCapSave = -30000;
     private int mChargeMode = -1;
     private int mSavedBrightness = -1;
     private int mSavedMode = -1;
@@ -112,6 +117,7 @@ public class KiroGuardian extends SystemUI {
                 mTemp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
                 mLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) * 100
                         / Math.max(1, intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100));
+                checkBatteryCapacity();
                 update();
             }
         }, new IntentFilter(Intent.ACTION_BATTERY_CHANGED), null, mHandler);
@@ -148,6 +154,27 @@ public class KiroGuardian extends SystemUI {
                 UserHandle.USER_ALL);
         cr.registerContentObserver(Settings.System.getUriFor(KEY_BYPASS), false, settings,
                 UserHandle.USER_ALL);
+    }
+
+    /**
+     * Beta 3: the kernel learns the battery's real capacity when the battery runs empty after a
+     * full charge, and the charge then drops in one step. Init saves it on request
+     * (kiroos_perf.sh battcap -> persist.sys.kiroos.batt_cap) before the phone switches off.
+     */
+    private void checkBatteryCapacity() {
+        final int last = mLastLevel;
+        mLastLevel = mLevel;
+        if (last < 0 || mLevel >= last) {
+            return;
+        }
+        if (last - mLevel >= 3 || mLevel <= 5) {
+            final long now = SystemClock.elapsedRealtime();
+            if (now - mLastCapSave < 30000) {
+                return;
+            }
+            mLastCapSave = now;
+            SystemProperties.set(PROP_BATTCAP, String.valueOf(now / 1000));
+        }
     }
 
     private static int parse(String s) {

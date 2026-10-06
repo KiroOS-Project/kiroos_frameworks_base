@@ -120,7 +120,7 @@ public class VolumeDialog implements TunerService.Tunable {
     private final Object mSafetyWarningLock = new Object();
     private final Accessibility mAccessibility = new Accessibility();
     private final ColorStateList mActiveSliderTint;
-    private final ColorStateList mInactiveSliderTint;
+    private ColorStateList mInactiveSliderTint;  // KiroOS: reloaded when the theme changes
     private VolumeDialogMotion mMotion;
     private final int mWindowType;
     private final ZenModeController mZenModeController;
@@ -141,6 +141,8 @@ public class VolumeDialog implements TunerService.Tunable {
     private long mCollapseTime;
     private boolean mHovering = false;
     private int mDensity;
+    // KiroOS: the dialog is rebuilt when the theme changes (Dark / Light), like for density
+    private int mUiModeNight;
 
     private boolean mShowFullZen;
     private TunerZenModePanel mZenPanel;
@@ -169,6 +171,7 @@ public class VolumeDialog implements TunerService.Tunable {
 
         final Configuration currentConfig = mContext.getResources().getConfiguration();
         mDensity = currentConfig.densityDpi;
+        mUiModeNight = currentConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
     }
 
     private void initDialog() {
@@ -1006,11 +1009,15 @@ public class VolumeDialog implements TunerService.Tunable {
         public void onConfigurationChanged() {
             Configuration newConfig = mContext.getResources().getConfiguration();
             final int density = newConfig.densityDpi;
-            if (density != mDensity) {
+            final int uiModeNight = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+            if (density != mDensity || uiModeNight != mUiModeNight) {
                 mDialog.dismiss();
                 mZenFooter.cleanup();
+                // the inactive slider colour has a light twin: load it for the new theme
+                mInactiveSliderTint = loadColorStateList(R.color.volume_slider_inactive);
                 initDialog();
                 mDensity = density;
+                mUiModeNight = uiModeNight;
             }
             updateWindowWidthH();
             mSpTexts.update();

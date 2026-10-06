@@ -478,8 +478,13 @@ public class NotificationPanelView extends PanelView implements
         final int overflowheight = getResources().getDimensionPixelSize(
                 R.dimen.notification_summary_height);
         float bottomStackSize = mNotificationStackScroller.getKeyguardBottomStackSize();
-        float availableSpace = mNotificationStackScroller.getHeight() - minPadding - overflowheight
-                - bottomStackSize;
+        // KiroOS: the lock screen's bottom area (indication text, then the Phone / lock / Camera
+        // row lifted by kiroos_keyguard_affordance_margin) sits higher than stock, and with many
+        // notifications the last card and the "+N" overflow ended up under it. The stack stops
+        // above the highest of those views, whichever is lower: that or the stock bottom stack.
+        float stackBottom = Math.min(mNotificationStackScroller.getHeight() - bottomStackSize,
+                kiroKeyguardBottomAreaTopInStack() - notificationPadding);
+        float availableSpace = stackBottom - minPadding - overflowheight;
         int count = 0;
         for (int i = 0; i < mNotificationStackScroller.getChildCount(); i++) {
             ExpandableView child = (ExpandableView) mNotificationStackScroller.getChildAt(i);
@@ -506,6 +511,34 @@ public class NotificationPanelView extends PanelView implements
             }
         }
         return count;
+    }
+
+    /**
+     * KiroOS: the top of the lock screen's bottom area (the indication text line, which is
+     * reserved even while empty so a charger plugged in later doesn't cover a card, and the
+     * affordance row), in the coordinates of the notification stack.
+     */
+    private float kiroKeyguardBottomAreaTopInStack() {
+        if (mKeyguardBottomArea.getVisibility() == View.GONE
+                || mKeyguardBottomArea.getHeight() == 0) {
+            return Float.MAX_VALUE;  // not on the lock screen / not laid out: stock limit only
+        }
+        float top = mKeyguardBottomArea.getHeight();
+        int[] ids = { R.id.keyguard_indication_text, R.id.left_button, R.id.lock_icon,
+                R.id.camera_button };
+        for (int id : ids) {
+            View v = mKeyguardBottomArea.findViewById(id);
+            if (v != null && v.getVisibility() != View.GONE && v.getHeight() > 0) {
+                top = Math.min(top, v.getTop());
+            }
+        }
+        // both views hang off this panel: bottom area directly, the stack inside its container
+        float stackTop = mNotificationStackScroller.getTop();
+        for (View p = (View) mNotificationStackScroller.getParent(); p != null && p != this;
+                p = (View) p.getParent()) {
+            stackTop += p.getTop();
+        }
+        return mKeyguardBottomArea.getTop() + top - stackTop;
     }
 
     private void startClockAnimation(int y) {

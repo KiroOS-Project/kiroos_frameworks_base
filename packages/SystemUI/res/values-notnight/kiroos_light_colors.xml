@@ -56,4 +56,10 @@
     <!-- the tile editor (edit_theme in kiroos_light_styles.xml) -->
     <color name="kiroos_edit_drag_bg">#FFE3E3EA</color>
     <color name="kiroos_edit_nav_bg">#FFE3E3EA</color>
+    <!-- the volume dialog -->
+    <color name="kiroos_volume_bg">#FFFFFFFF</color>
+    <color name="kiroos_volume_text">#FF1C1C1E</color>
+    <color name="volume_icon_color">#FF1C1C1E</color>
+    <color name="volume_settings_icon_color">#8A1C1C1E</color>
+    <color name="volume_slider_inactive">#611C1C1E</color>
 </resources>
