@@ -453,7 +453,12 @@ public class RecoverySystem {
             // If the package is on the /data partition, the package needs to
             // be processed (i.e. uncrypt'd). The caller specifies if that has
             // been done in 'processed' parameter.
-            if (filename.startsWith("/data/")) {
+            // KiroOS Beta 3: only when /data is encrypted. On an unencrypted phone the
+            // recovery reads the package from /data itself, and the plain path is what every
+            // recovery understands: TWRP too, which may not know the "@" block map.
+            final boolean dataEncrypted =
+                    "encrypted".equals(SystemProperties.get("ro.crypto.state"));
+            if (filename.startsWith("/data/") && dataEncrypted) {
                 if (processed) {
                     if (!BLOCK_MAP_FILE.exists()) {
                         Log.e(TAG, "Package claimed to have been processed but failed to find "
