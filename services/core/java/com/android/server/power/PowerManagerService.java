@@ -183,7 +183,8 @@ public final class PowerManagerService extends SystemService
     // Power features defined in hardware/libhardware/include/hardware/power.h.
     private static final int POWER_FEATURE_DOUBLE_TAP_TO_WAKE = 1;
 
-    private static final int DEFAULT_BUTTON_ON_DURATION = 5 * 1000;
+    // KiroOS: the touchkey LEDs go dark 3 s after the last touch (stock Samsung was 1.5 s)
+    private static final int DEFAULT_BUTTON_ON_DURATION = 3 * 1000;
 
     // Default setting for double tap to wake.
     private static final int DEFAULT_DOUBLE_TAP_TO_WAKE = 0;
