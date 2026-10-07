@@ -309,6 +309,11 @@
                   android:process=":screenshot"
                   android:exported="false" />
 
+        <!-- KiroOS: the screenshot notification's "Scroll" action (Kiro Capture) -->
+        <receiver android:name=".screenshot.GlobalScreenshot$ScrollCaptureReceiver"
+                  android:process=":screenshot"
+                  android:exported="false" />
+
         <!-- started from UsbDeviceSettingsManager -->
         <activity android:name=".usb.UsbConfirmActivity"
             android:exported="true"

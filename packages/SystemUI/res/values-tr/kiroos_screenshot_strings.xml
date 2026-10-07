@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the screenshot notification's action that continues it down the page (Kiro Capture) -->
+<resources>
+    <string name="kiroos_screenshot_scroll">Kaydır</string>
+</resources>

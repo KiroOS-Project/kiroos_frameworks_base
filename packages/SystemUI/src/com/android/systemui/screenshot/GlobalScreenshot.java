@@ -25,11 +25,15 @@ import android.app.Notification;
 import android.app.Notification.BigPictureStyle;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.StatusBarManager;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -48,6 +52,7 @@ import android.os.Environment;
 import android.os.Process;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -293,6 +298,17 @@ class SaveImageInBackgroundTask extends AsyncTask<Void, Void, Void> {
                     R.drawable.ic_screenshot_delete,
                     r.getString(com.android.internal.R.string.delete), deleteAction);
             mNotificationBuilder.addAction(deleteActionBuilder.build());
+
+            // KiroOS: "Scroll" continues this screenshot down the page (Kiro Capture)
+            if (GlobalScreenshot.ScrollCaptureReceiver.available(context)) {
+                PendingIntent scrollAction = PendingIntent.getBroadcast(context, 0,
+                        new Intent(context, GlobalScreenshot.ScrollCaptureReceiver.class)
+                                .putExtra(GlobalScreenshot.SCREENSHOT_URI_ID, uri.toString()),
+                        PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT);
+                mNotificationBuilder.addAction(new Notification.Action.Builder(
+                        R.drawable.ic_screenshot_scroll,
+                        r.getString(R.string.kiroos_screenshot_scroll), scrollAction).build());
+            }
 
             mParams.imageUri = uri;
             mParams.image = null;
@@ -929,6 +945,44 @@ class GlobalScreenshot {
 
             // And delete the image from the media store
             new DeleteImageInBackgroundTask(context).execute(uri);
+        }
+    }
+
+    /**
+     * KiroOS: the "Scroll" action. Closes the shade and hands the screenshot to Kiro Capture,
+     * which scrolls the app below and replaces it with the long screenshot.
+     */
+    public static class ScrollCaptureReceiver extends BroadcastReceiver {
+        private static final ComponentName CAPTURE = new ComponentName("com.kiroos.capture",
+                "com.kiroos.capture.ScrollCaptureActivity");
+
+        static boolean available(Context context) {
+            try {
+                context.getPackageManager().getActivityInfo(CAPTURE, 0);
+                return true;
+            } catch (PackageManager.NameNotFoundException e) {
+                return false;
+            }
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!intent.hasExtra(SCREENSHOT_URI_ID)) {
+                return;
+            }
+            final NotificationManager nm =
+                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            nm.cancel(SystemMessage.NOTE_GLOBAL_SCREENSHOT);
+            context.getSystemService(StatusBarManager.class).collapsePanels();
+            try {
+                context.startActivity(new Intent()
+                        .setComponent(CAPTURE)
+                        .putExtra("original", Uri.parse(intent.getStringExtra(SCREENSHOT_URI_ID)))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+            } catch (ActivityNotFoundException e) {
+                Log.w("GlobalScreenshot", "Kiro Capture is not installed", e);
+            }
         }
     }
 }
