@@ -4538,9 +4538,17 @@ public final class ActivityStackSupervisor implements DisplayListener {
             }
         }
 
+        // KiroOS: a task of a locked app (Kiro App Lock) is reopened through
+        // startActivityInPackage too, where ActivityStartInterceptor shows the unlock screen; the
+        // unlock screen's token in the options lets it through
+        final boolean kiroLocked = ActivityStartInterceptor.kiroNeedsUnlock(mService,
+                task.realActivity != null ? task.realActivity.getPackageName() : null,
+                task.userId, null, bOptions);
+
         // If the user must confirm credentials (e.g. when first launching a work app and the
         // Work Challenge is present) let startActivityInPackage handle the intercepting.
         if (!mService.mUserController.shouldConfirmCredentials(task.userId)
+                && !kiroLocked
                 && task.getRootActivity() != null) {
             mService.mActivityStarter.sendPowerHintForLaunchStartIfNeeded(true /* forceSend */);
             mActivityMetricsLogger.notifyActivityLaunching();

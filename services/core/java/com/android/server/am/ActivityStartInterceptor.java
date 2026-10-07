@@ -33,15 +33,28 @@ import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.KeyguardManager;
 import android.app.admin.DevicePolicyManagerInternal;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.IIntentSender;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.UserInfo;
+import android.database.ContentObserver;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.provider.Settings;
+import android.text.TextUtils;
+import android.util.ArrayMap;
+import android.util.ArraySet;
+
+import java.security.SecureRandom;
 
 import com.android.internal.app.UnlaunchableAppActivity;
 import com.android.server.LocalServices;
@@ -115,7 +128,160 @@ class ActivityStartInterceptor {
             // be unlocked when profile's user is running.
             return;
         }
-        interceptWorkProfileChallengeIfNeeded();
+        if (interceptWorkProfileChallengeIfNeeded()) {
+            return;
+        }
+        interceptKiroAppLockIfNeeded();
+    }
+
+    // ---- KiroOS App lock
+    //
+    // Kiro App Lock (com.kiroos.applock) keeps the locked packages in Settings.Secure. Starting
+    // one of their activities shows its UnlockActivity instead, with the original start as an
+    // IntentSender and a one-time token; after the fingerprint (or the PIN) it sends the start
+    // again with the token filled in, which unlocks the package until the screen turns off.
+    // Tasks opened from Recents come here too (ActivityStackSupervisor
+    // .startActivityFromRecentsInner); for them the token comes back in the options.
+
+    /** Settings.Secure: the locked packages, comma separated */
+    static final String KIRO_APPLOCK_PACKAGES = "kiroos_applock_packages";
+    static final String KIRO_APPLOCK_TOKEN = "com.kiroos.applock.TOKEN";
+    private static final ComponentName KIRO_UNLOCK = new ComponentName("com.kiroos.applock",
+            "com.kiroos.applock.UnlockActivity");
+
+    private static volatile String[] sKiroLocked = new String[0];
+    private static boolean sKiroWatching;
+    // guarded by the ActivityManagerService lock
+    private static final ArraySet<String> sKiroUnlocked = new ArraySet<>();
+    private static final ArrayMap<String, Long> sKiroTokens = new ArrayMap<>();
+    private static final SecureRandom sKiroRandom = new SecureRandom();
+
+    /**
+     * Whether pkg is locked for userId. The token handed out for it unlocks it: in the intent's
+     * extras (a start sent again by Kiro App Lock) or in the Recents options. The extras are only
+     * looked at for a locked package that has a token out, so other starts keep their extras
+     * untouched. Called with the AMS lock held.
+     */
+    static boolean kiroNeedsUnlock(ActivityManagerService service, String pkg, int userId,
+            Intent intent, Bundle options) {
+        kiroWatch(service);
+        if (pkg == null || userId != UserHandle.USER_SYSTEM
+                || KIRO_UNLOCK.getPackageName().equals(pkg)) {
+            return false;
+        }
+        boolean locked = false;
+        for (String p : sKiroLocked) {
+            if (p.equals(pkg)) {
+                locked = true;
+                break;
+            }
+        }
+        if (!locked || sKiroUnlocked.contains(pkg)) return false;
+        final Long expected = sKiroTokens.get(pkg);
+        if (expected != null) {
+            long token = 0;
+            try {
+                if (intent != null) {
+                    // a copy: the intent's own extras are not unparceled here
+                    final Bundle extras = intent.getExtras();
+                    if (extras != null) token = extras.getLong(KIRO_APPLOCK_TOKEN, 0);
+                } else if (options != null) {
+                    token = options.getLong(KIRO_APPLOCK_TOKEN, 0);
+                }
+            } catch (RuntimeException e) {
+                // extras that cannot be read here carry no token
+            }
+            if (token == expected) {
+                sKiroTokens.remove(pkg);
+                sKiroUnlocked.add(pkg);
+                if (intent != null) intent.removeExtra(KIRO_APPLOCK_TOKEN);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** a new token for pkg, replacing the one of an earlier lock screen */
+    private static long kiroNewToken(String pkg) {
+        long t;
+        do {
+            t = sKiroRandom.nextLong();
+        } while (t == 0);
+        sKiroTokens.put(pkg, t);
+        return t;
+    }
+
+    /** the locked list follows Settings; every unlock ends when the screen turns off */
+    private static void kiroWatch(final ActivityManagerService service) {
+        if (sKiroWatching || !service.mSystemReady) return;
+        sKiroWatching = true;
+        service.mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                final ContentResolver cr = service.mContext.getContentResolver();
+                final Runnable read = new Runnable() {
+                    @Override
+                    public void run() {
+                        final String v = Settings.Secure.getStringForUser(cr,
+                                KIRO_APPLOCK_PACKAGES, UserHandle.USER_SYSTEM);
+                        sKiroLocked = TextUtils.isEmpty(v) ? new String[0] : v.split(",");
+                    }
+                };
+                cr.registerContentObserver(Settings.Secure.getUriFor(KIRO_APPLOCK_PACKAGES),
+                        false, new ContentObserver(service.mHandler) {
+                            @Override
+                            public void onChange(boolean selfChange) {
+                                read.run();
+                            }
+                        }, UserHandle.USER_SYSTEM);
+                read.run();
+                service.mContext.registerReceiver(new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        synchronized (service) {
+                            sKiroUnlocked.clear();
+                            sKiroTokens.clear();
+                        }
+                    }
+                }, new IntentFilter(Intent.ACTION_SCREEN_OFF), null, service.mHandler);
+            }
+        });
+    }
+
+    private boolean interceptKiroAppLockIfNeeded() {
+        if (mAInfo == null) return false;
+        final String pkg = mAInfo.packageName;
+        if (!kiroNeedsUnlock(mService, pkg, mUserId, mIntent, null)) {
+            return false;
+        }
+        final Intent unlock = new Intent()
+                .setComponent(KIRO_UNLOCK)
+                .setFlags(FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                        | FLAG_ACTIVITY_TASK_ON_HOME);
+        final ResolveInfo rInfo = mSupervisor.resolveIntent(unlock, null, mUserId);
+        if (rInfo == null) {
+            // Kiro App Lock is missing: never keep the user out of their apps
+            return false;
+        }
+        final IIntentSender target = mService.getIntentSenderLocked(
+                INTENT_SENDER_ACTIVITY, mCallingPackage, mCallingUid, mUserId, null, null, 0,
+                new Intent[] {mIntent}, new String[] {mResolvedType},
+                FLAG_CANCEL_CURRENT | FLAG_ONE_SHOT, null);
+        unlock.putExtra(EXTRA_PACKAGE_NAME, pkg);
+        unlock.putExtra(EXTRA_INTENT, new IntentSender(target));
+        unlock.putExtra(KIRO_APPLOCK_TOKEN, kiroNewToken(pkg));
+        if (mInTask != null) {
+            // from Recents: Kiro App Lock reopens the task itself
+            unlock.putExtra(EXTRA_TASK_ID, mInTask.taskId);
+            mInTask = null;
+        }
+        mIntent = unlock;
+        mCallingPid = mRealCallingPid;
+        mCallingUid = mRealCallingUid;
+        mResolvedType = null;
+        mRInfo = rInfo;
+        mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
+        return true;
     }
 
     private boolean interceptQuietProfileIfNeeded() {

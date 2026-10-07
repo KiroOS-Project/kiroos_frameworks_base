@@ -295,6 +295,13 @@ final class DefaultPermissionGrantPolicy {
                 grantRuntimePermissionsLPw(verifierPackage, SMS_PERMISSIONS, false, userId);
             }
 
+            // KiroOS: Kiro Capture saves long screenshots with the system's screenshots
+            PackageParser.Package kiroCapturePackage = getSystemPackageLPr("com.kiroos.capture");
+            if (kiroCapturePackage != null
+                    && doesPackageSupportRuntimePermissions(kiroCapturePackage)) {
+                grantRuntimePermissionsLPw(kiroCapturePackage, STORAGE_PERMISSIONS, userId);
+            }
+
             // SetupWizard
             PackageParser.Package setupPackage = getSystemPackageLPr(
                     mService.mSetupWizardPackage);
