@@ -1467,7 +1467,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private void interceptPowerKeyUp(KeyEvent event, boolean interactive, boolean canceled) {
-        mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
+        kiroPowerChordReleased();
         if (mKiroPowerKaiPending) {
             // KiroOS: released after the long press but before the power menu: kAI
             mKiroPowerKaiPending = false;
@@ -1694,19 +1694,24 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     /**
-     * KiroOS: Power and Volume Up held together open the power menu (to switch off or
-     * restart), since holding Power alone opens kAI. In either order; the Volume Up of the
-     * chord does not change the volume.
+     * KiroOS: Power and Volume Up together. A quick press of both takes a screenshot; held for
+     * half a second they open the power menu (to switch off or restart), since holding Power
+     * alone opens kAI. In either order; the Volume Up of the chord does not change the volume.
      */
-    private static final long KIRO_POWER_CHORD_DELAY_MS = 250;
+    private static final long KIRO_POWER_CHORD_DELAY_MS = 500;
+    /** the two keys of a quick press go down within this of each other */
+    private static final long KIRO_POWER_CHORD_QUICK_MS = 300;
     private long mKiroVolumeUpKeyTime;
     private boolean mKiroVolumeUpConsumed;
+    private boolean mKiroPowerChordQuick;
 
     private void interceptKiroPowerChord() {
         if (!mScreenshotChordPowerKeyTriggered || !mScreenshotChordVolumeUpKeyTriggered) {
             return;
         }
         mKiroVolumeUpConsumed = true;
+        mKiroPowerChordQuick = Math.abs(mScreenshotChordPowerKeyTime - mKiroVolumeUpKeyTime)
+                <= KIRO_POWER_CHORD_QUICK_MS;
         cancelPendingPowerKeyAction();
         // not kAI either, even if Power was already held long enough for it
         mKiroPowerKaiPending = false;
@@ -1715,6 +1720,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         final Message msg = mHandler.obtainMessage(MSG_KIRO_POWER_CHORD);
         msg.setAsynchronous(true);
         mHandler.sendMessageDelayed(msg, KIRO_POWER_CHORD_DELAY_MS);
+    }
+
+    /** one key of the chord let go before the power menu: a quick press is a screenshot */
+    private void kiroPowerChordReleased() {
+        if (!mHandler.hasMessages(MSG_KIRO_POWER_CHORD)) {
+            return;
+        }
+        mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
+        if (mKiroPowerChordQuick && mScreenshotChordEnabled) {
+            mKiroScreenshotRunnable.setScreenshotType(TAKE_SCREENSHOT_FULLSCREEN);
+            mHandler.post(mKiroScreenshotRunnable);
+        }
     }
 
     /** kAI's card over the current app, listening (KaiOverlayActivity) */
@@ -1860,6 +1877,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private final ScreenshotRunnable mScreenshotRunnable = new ScreenshotRunnable();
+    /** KiroOS: the quick Power + Volume Up screenshot, posted as the keys are let go, when
+     * cancelPendingScreenshotChordAction() also runs for the Volume Down chord */
+    private final ScreenshotRunnable mKiroScreenshotRunnable = new ScreenshotRunnable();
 
     @Override
     public void showGlobalActions() {
@@ -6736,7 +6756,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         }
                     } else {
                         mScreenshotChordVolumeUpKeyTriggered = false;
-                        mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
+                        kiroPowerChordReleased();
                         cancelPendingScreenshotChordAction();
                     }
                 }
