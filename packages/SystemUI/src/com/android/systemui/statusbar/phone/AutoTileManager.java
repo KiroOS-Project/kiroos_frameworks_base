@@ -14,12 +14,16 @@
 
 package com.android.systemui.statusbar.phone;
 
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Handler;
 import android.provider.Settings.Secure;
+import android.service.quicksettings.TileService;
 import com.android.systemui.Prefs;
 import com.android.systemui.Prefs.Key;
 import com.android.systemui.qs.SecureSetting;
+import com.android.systemui.qs.external.CustomTile;
 import com.android.systemui.statusbar.policy.DataSaverController;
 import com.android.systemui.statusbar.policy.DataSaverController.Listener;
 import com.android.systemui.statusbar.policy.HotspotController;
@@ -66,7 +70,28 @@ public class AutoTileManager {
         if (!Prefs.getBoolean(context, Key.QS_WORK_ADDED, false)) {
             host.getManagedProfileController().addCallback(mProfileCallback);
         }
+        if (!Prefs.getBoolean(context, Key.QS_KIRO_SCREEN_RECORD_ADDED, false)) {
+            // KiroOS: the screen recorder lives in the control center (it has no app icon).
+            // Added once, at the end (the 9th tile fills the first page); removing it from the
+            // tile editor is final.
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    final ComponentName recorder = new ComponentName(KIRO_RECORDER_PACKAGE,
+                            KIRO_RECORDER_PACKAGE + ".RecordTileService");
+                    final boolean installed = !mContext.getPackageManager().queryIntentServices(
+                            new Intent(TileService.ACTION_QS_TILE).setComponent(recorder), 0)
+                            .isEmpty();
+                    if (installed) {
+                        mHost.addTile(CustomTile.toSpec(recorder));
+                    }
+                    Prefs.putBoolean(mContext, Key.QS_KIRO_SCREEN_RECORD_ADDED, true);
+                }
+            });
+        }
     }
+
+    private static final String KIRO_RECORDER_PACKAGE = "com.kiroos.screenrecord";
 
     public void destroy() {
         // TODO: Remove any registered listeners.
