@@ -17,6 +17,7 @@ package com.android.systemui.statusbar.phone;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.provider.Settings.Secure;
 import android.service.quicksettings.TileService;
@@ -79,13 +80,17 @@ public class AutoTileManager {
                 public void run() {
                     final ComponentName recorder = new ComponentName(KIRO_RECORDER_PACKAGE,
                             KIRO_RECORDER_PACKAGE + ".RecordTileService");
+                    // SystemUI starts before the user is unlocked: without the direct boot
+                    // flags the recorder (not direct boot aware) is not found then, and the
+                    // tile was never added. Not installed: asked again at the next start.
                     final boolean installed = !mContext.getPackageManager().queryIntentServices(
-                            new Intent(TileService.ACTION_QS_TILE).setComponent(recorder), 0)
-                            .isEmpty();
+                            new Intent(TileService.ACTION_QS_TILE).setComponent(recorder),
+                            PackageManager.MATCH_DIRECT_BOOT_AWARE
+                                    | PackageManager.MATCH_DIRECT_BOOT_UNAWARE).isEmpty();
                     if (installed) {
                         mHost.addTile(CustomTile.toSpec(recorder));
+                        Prefs.putBoolean(mContext, Key.QS_KIRO_SCREEN_RECORD_ADDED, true);
                     }
-                    Prefs.putBoolean(mContext, Key.QS_KIRO_SCREEN_RECORD_ADDED, true);
                 }
             });
         }
