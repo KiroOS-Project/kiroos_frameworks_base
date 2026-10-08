@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS control center editor: the + of a control that can be added, in the KiroOS blue -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="26dp"
+        android:height="26dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="@color/qs_tile_bg_active" />
+        </shape>
+    </item>
+    <item
+        android:width="12dp"
+        android:height="2.5dp"
+        android:gravity="center">
+        <shape>
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="1.25dp" />
+        </shape>
+    </item>
+    <item
+        android:width="2.5dp"
+        android:height="12dp"
+        android:gravity="center">
+        <shape>
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="1.25dp" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2026 KiroOS
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,21 +19,19 @@ package com.android.systemui.qs.customize;
 import android.animation.Animator;
 import android.animation.Animator.AnimatorListener;
 import android.animation.AnimatorListenerAdapter;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.res.Configuration;
+import android.graphics.Rect;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
-import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.Toolbar;
-import android.widget.Toolbar.OnMenuItemClickListener;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.MetricsProto;
 import com.android.systemui.R;
@@ -42,20 +41,18 @@ import com.android.systemui.qs.QSTile;
 import com.android.systemui.statusbar.phone.NotificationsQuickSettingsContainer;
 import com.android.systemui.statusbar.phone.PhoneStatusBar;
 import com.android.systemui.statusbar.phone.QSTileHost;
+import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.statusbar.policy.KeyguardMonitor.Callback;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Allows full-screen customization of QS, through show() and hide().
- *
- * This adds itself to the status bar window, so it can appear on top of quick settings and
- * *someday* do fancy animations to get into/out of it.
+ * KiroOS: the control center editor, full screen over the control center (show() / hide(), from
+ * the pencil). A header with Reset, the title and Done; under it TileAdapter's list: the control
+ * center as it looks, then the controls that can be added.
  */
-public class QSCustomizer extends LinearLayout implements OnMenuItemClickListener {
-
-    private static final int MENU_RESET = Menu.FIRST;
+public class QSCustomizer extends LinearLayout {
 
     private final QSDetailClipper mClipper;
 
@@ -65,10 +62,11 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
     private QSTileHost mHost;
     private RecyclerView mRecyclerView;
     private TileAdapter mTileAdapter;
-    private Toolbar mToolbar;
+    private View mDone;
     private boolean mCustomizing;
     private NotificationsQuickSettingsContainer mNotifQsContainer;
     private QSContainer mQsContainer;
+    private AlertDialog mResetDialog;
 
     public QSCustomizer(Context context, AttributeSet attrs) {
         super(new ContextThemeWrapper(context, R.style.edit_theme), attrs);
@@ -76,32 +74,35 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
 
         LayoutInflater.from(getContext()).inflate(R.layout.qs_customize_panel_content, this);
 
-        mToolbar = (Toolbar) findViewById(com.android.internal.R.id.action_bar);
-        TypedValue value = new TypedValue();
-        mContext.getTheme().resolveAttribute(android.R.attr.homeAsUpIndicator, value, true);
-        mToolbar.setNavigationIcon(
-                getResources().getDrawable(value.resourceId, mContext.getTheme()));
-        mToolbar.setNavigationOnClickListener(new OnClickListener() {
+        mDone = findViewById(R.id.kiroos_edit_done);
+        mDone.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                hide((int) v.getX() + v.getWidth() / 2, (int) v.getY() + v.getHeight() / 2);
+                // the editor closes into the button
+                final Rect r = new Rect(0, 0, v.getWidth(), v.getHeight());
+                offsetDescendantRectToMyCoords(v, r);
+                hide(r.centerX(), r.centerY());
             }
         });
-        mToolbar.setOnMenuItemClickListener(this);
-        mToolbar.getMenu().add(Menu.NONE, MENU_RESET, 0,
-                mContext.getString(com.android.internal.R.string.reset));
-        mToolbar.setTitle(R.string.qs_edit);
+        findViewById(R.id.kiroos_edit_reset).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                confirmReset();
+            }
+        });
 
         mRecyclerView = (RecyclerView) findViewById(android.R.id.list);
         mTileAdapter = new TileAdapter(getContext());
         mRecyclerView.setAdapter(mTileAdapter);
         mTileAdapter.getItemTouchHelper().attachToRecyclerView(mRecyclerView);
-        GridLayoutManager layout = new GridLayoutManager(getContext(), 3);
+        GridLayoutManager layout = new GridLayoutManager(getContext(), TileAdapter.SPANS);
         layout.setSpanSizeLookup(mTileAdapter.getSizeLookup());
         mRecyclerView.setLayoutManager(layout);
         mRecyclerView.addItemDecoration(mTileAdapter.getItemDecoration());
         DefaultItemAnimator animator = new DefaultItemAnimator();
         animator.setMoveDuration(TileAdapter.MOVE_DURATION);
+        // a control's place changes its description, not its look: no cross-fade
+        animator.setSupportsChangeAnimations(false);
         mRecyclerView.setItemAnimator(animator);
     }
 
@@ -135,6 +136,7 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
             MetricsLogger.visible(getContext(), MetricsProto.MetricsEvent.QS_EDIT);
             isShown = true;
             setTileSpecs();
+            mRecyclerView.scrollToPosition(0);
             setVisibility(View.VISIBLE);
             mClipper.animateCircularClip(x, y, true, mExpandAnimationListener);
             new TileQueryHelper(mContext, mHost).setListener(mTileAdapter);
@@ -150,7 +152,10 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
         if (isShown) {
             MetricsLogger.hidden(getContext(), MetricsProto.MetricsEvent.QS_EDIT);
             isShown = false;
-            mToolbar.dismissPopupMenus();
+            if (mResetDialog != null) {
+                mResetDialog.dismiss();
+                mResetDialog = null;
+            }
             setCustomizing(false);
             save();
             mClipper.animateCircularClip(x, y, false, mCollapseAnimationListener);
@@ -175,24 +180,44 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
         return mCustomizing;
     }
 
-    @Override
-    public boolean onMenuItemClick(MenuItem item) {
-        switch (item.getItemId()) {
-            case MENU_RESET:
-                MetricsLogger.action(getContext(), MetricsProto.MetricsEvent.ACTION_QS_EDIT_RESET);
-                reset();
-                break;
-        }
-        return false;
+    /** Reset asks first: it throws away the user's order */
+    private void confirmReset() {
+        if (mResetDialog != null) return;
+        final AlertDialog dialog = new AlertDialog.Builder(mContext)
+                .setTitle(R.string.kiroos_edit_reset_title)
+                .setMessage(R.string.kiroos_edit_reset_text)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.kiroos_edit_reset,
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int which) {
+                                MetricsLogger.action(getContext(),
+                                        MetricsProto.MetricsEvent.ACTION_QS_EDIT_RESET);
+                                reset();
+                            }
+                        })
+                .create();
+        dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface d) {
+                mResetDialog = null;
+            }
+        });
+        SystemUIDialog.setShowForAllUsers(dialog, true);
+        SystemUIDialog.applyFlags(dialog);
+        mResetDialog = dialog;
+        dialog.show();
     }
 
     private void reset() {
         ArrayList<String> tiles = new ArrayList<>();
         String defTiles = mContext.getString(R.string.quick_settings_tiles_default);
         for (String tile : defTiles.split(",")) {
-            tiles.add(tile);
+            tile = tile.trim();
+            if (!tile.isEmpty()) tiles.add(tile);
         }
-        mTileAdapter.setTileSpecs(tiles);
+        mTileAdapter.resetTo(tiles);
+        mRecyclerView.smoothScrollToPosition(0);
     }
 
     private void setTileSpecs() {
@@ -201,7 +226,6 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
             specs.add(tile.getTileSpec());
         }
         mTileAdapter.setTileSpecs(specs);
-        mRecyclerView.setAdapter(mTileAdapter);
     }
 
     private void save() {
@@ -223,11 +247,13 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
             if (isShown) {
                 setCustomizing(true);
             }
+            mTileAdapter.onShown();
             mNotifQsContainer.setCustomizerAnimating(false);
         }
 
         @Override
         public void onAnimationCancel(Animator animation) {
+            mTileAdapter.onShown();
             mNotifQsContainer.setCustomizerAnimating(false);
         }
     };
@@ -239,7 +265,6 @@ public class QSCustomizer extends LinearLayout implements OnMenuItemClickListene
                 setVisibility(View.GONE);
             }
             mNotifQsContainer.setCustomizerAnimating(false);
-            mRecyclerView.setAdapter(mTileAdapter);
         }
 
         @Override

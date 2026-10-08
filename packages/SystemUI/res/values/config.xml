@@ -98,9 +98,11 @@
     <!-- The number of columns that the top level tiles span in the QuickSettings -->
     <integer name="quick_settings_user_time_settings_tile_span">1</integer>
 
-    <!-- The default tiles to display in QuickSettings -->
+    <!-- The default tiles to display in QuickSettings. KiroOS: with the screen recorder (it has no
+         app icon); the editor's Reset brings these back. Phones updating get it once from
+         AutoTileManager. -->
     <string name="quick_settings_tiles_default" translatable="false">
-        wifi,cell,battery,dnd,flashlight,rotation,bt,airplane
+        wifi,cell,battery,dnd,flashlight,rotation,bt,airplane,custom(com.kiroos.screenrecord/.RecordTileService)
     </string>
 
     <!-- Tiles native to System UI. Order should match "quick_settings_tiles_default" -->

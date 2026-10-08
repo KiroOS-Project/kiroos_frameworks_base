@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the control center editor (QSCustomizer / TileAdapter) -->
+<resources>
+    <string name="kiroos_edit_title">Control center</string>
+    <string name="kiroos_edit_done">Done</string>
+    <string name="kiroos_edit_reset">Reset</string>
+    <string name="kiroos_edit_included">In the control center</string>
+    <string name="kiroos_edit_included_hint">Touch and hold a control to move it. Tap − to remove it.</string>
+    <string name="kiroos_edit_more">More controls</string>
+    <string name="kiroos_edit_more_hint">Tap a control to add it.</string>
+    <string name="kiroos_edit_page">Page %d</string>
+    <string name="kiroos_edit_top_row">Always at the top</string>
+    <string name="kiroos_edit_empty">The control center is empty. Add controls from the list below.</string>
+    <string name="kiroos_edit_all_added">Every control is already in the control center.</string>
+    <string name="kiroos_edit_remove">Remove %s</string>
+    <string name="kiroos_edit_add">Add %s</string>
+    <string name="kiroos_edit_added">%s added</string>
+    <string name="kiroos_edit_removed">%s removed</string>
+    <string name="kiroos_edit_position">%1$s, position %2$d</string>
+    <string name="kiroos_edit_move_earlier">Move earlier</string>
+    <string name="kiroos_edit_move_later">Move later</string>
+    <string name="kiroos_edit_reset_title">Reset the control center?</string>
+    <string name="kiroos_edit_reset_text">The default controls come back in their original order.</string>
+</resources>

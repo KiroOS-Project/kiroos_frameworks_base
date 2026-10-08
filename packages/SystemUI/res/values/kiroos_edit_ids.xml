@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS control center editor: accessibility actions of a tile (TileAdapter) -->
+<resources>
+    <item type="id" name="kiroos_edit_action_remove" />
+    <item type="id" name="kiroos_edit_action_earlier" />
+    <item type="id" name="kiroos_edit_action_later" />
+</resources>

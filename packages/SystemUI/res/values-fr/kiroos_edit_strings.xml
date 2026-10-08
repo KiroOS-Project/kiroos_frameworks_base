@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the control center editor (QSCustomizer / TileAdapter) -->
+<resources>
+    <string name="kiroos_edit_title">Centre de contrôle</string>
+    <string name="kiroos_edit_done">OK</string>
+    <string name="kiroos_edit_reset">Réinitialiser</string>
+    <string name="kiroos_edit_included">Dans le centre de contrôle</string>
+    <string name="kiroos_edit_included_hint">Maintenez un contrôle pour le déplacer. Touchez − pour le retirer.</string>
+    <string name="kiroos_edit_more">Autres contrôles</string>
+    <string name="kiroos_edit_more_hint">Touchez un contrôle pour l\'ajouter.</string>
+    <string name="kiroos_edit_page">Page %d</string>
+    <string name="kiroos_edit_top_row">Toujours en haut</string>
+    <string name="kiroos_edit_empty">Le centre de contrôle est vide. Ajoutez des contrôles depuis la liste ci-dessous.</string>
+    <string name="kiroos_edit_all_added">Tous les contrôles sont déjà dans le centre de contrôle.</string>
+    <string name="kiroos_edit_remove">Retirer %s</string>
+    <string name="kiroos_edit_add">Ajouter %s</string>
+    <string name="kiroos_edit_added">%s ajouté</string>
+    <string name="kiroos_edit_removed">%s retiré</string>
+    <string name="kiroos_edit_position">%1$s, position %2$d</string>
+    <string name="kiroos_edit_move_earlier">Déplacer avant</string>
+    <string name="kiroos_edit_move_later">Déplacer après</string>
+    <string name="kiroos_edit_reset_title">Réinitialiser le centre de contrôle ?</string>
+    <string name="kiroos_edit_reset_text">Les contrôles par défaut reviennent dans leur ordre d\'origine.</string>
+</resources>

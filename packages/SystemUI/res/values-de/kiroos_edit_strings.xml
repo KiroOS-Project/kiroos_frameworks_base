@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the control center editor (QSCustomizer / TileAdapter) -->
+<resources>
+    <string name="kiroos_edit_title">Kontrollzentrum</string>
+    <string name="kiroos_edit_done">Fertig</string>
+    <string name="kiroos_edit_reset">Zurücksetzen</string>
+    <string name="kiroos_edit_included">Im Kontrollzentrum</string>
+    <string name="kiroos_edit_included_hint">Halte ein Steuerelement gedrückt, um es zu verschieben. Tippe auf −, um es zu entfernen.</string>
+    <string name="kiroos_edit_more">Weitere Steuerelemente</string>
+    <string name="kiroos_edit_more_hint">Tippe auf ein Steuerelement, um es hinzuzufügen.</string>
+    <string name="kiroos_edit_page">Seite %d</string>
+    <string name="kiroos_edit_top_row">Immer oben</string>
+    <string name="kiroos_edit_empty">Das Kontrollzentrum ist leer. Füge unten Steuerelemente hinzu.</string>
+    <string name="kiroos_edit_all_added">Alle Steuerelemente sind schon im Kontrollzentrum.</string>
+    <string name="kiroos_edit_remove">%s entfernen</string>
+    <string name="kiroos_edit_add">%s hinzufügen</string>
+    <string name="kiroos_edit_added">%s hinzugefügt</string>
+    <string name="kiroos_edit_removed">%s entfernt</string>
+    <string name="kiroos_edit_position">%1$s, Position %2$d</string>
+    <string name="kiroos_edit_move_earlier">Nach vorne</string>
+    <string name="kiroos_edit_move_later">Nach hinten</string>
+    <string name="kiroos_edit_reset_title">Kontrollzentrum zurücksetzen?</string>
+    <string name="kiroos_edit_reset_text">Die Standard-Steuerelemente kommen in ihrer ursprünglichen Reihenfolge zurück.</string>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the control center editor (QSCustomizer / TileAdapter) -->
+<resources>
+    <string name="kiroos_edit_title">Denetim merkezi</string>
+    <string name="kiroos_edit_done">Bitti</string>
+    <string name="kiroos_edit_reset">Sıfırla</string>
+    <string name="kiroos_edit_included">Denetim merkezinde</string>
+    <string name="kiroos_edit_included_hint">Taşımak için bir denetime dokunup basılı tutun. Kaldırmak için −\'ye dokunun.</string>
+    <string name="kiroos_edit_more">Diğer denetimler</string>
+    <string name="kiroos_edit_more_hint">Eklemek için bir denetime dokunun.</string>
+    <string name="kiroos_edit_page">Sayfa %d</string>
+    <string name="kiroos_edit_top_row">Her zaman en üstte</string>
+    <string name="kiroos_edit_empty">Denetim merkezi boş. Aşağıdaki listeden denetim ekleyin.</string>
+    <string name="kiroos_edit_all_added">Tüm denetimler zaten denetim merkezinde.</string>
+    <string name="kiroos_edit_remove">%s kaldır</string>
+    <string name="kiroos_edit_add">%s ekle</string>
+    <string name="kiroos_edit_added">%s eklendi</string>
+    <string name="kiroos_edit_removed">%s kaldırıldı</string>
+    <string name="kiroos_edit_position">%1$s, konum %2$d</string>
+    <string name="kiroos_edit_move_earlier">Öne taşı</string>
+    <string name="kiroos_edit_move_later">Arkaya taşı</string>
+    <string name="kiroos_edit_reset_title">Denetim merkezi sıfırlansın mı?</string>
+    <string name="kiroos_edit_reset_text">Varsayılan denetimler ilk sıralarıyla geri gelir.</string>
+</resources>

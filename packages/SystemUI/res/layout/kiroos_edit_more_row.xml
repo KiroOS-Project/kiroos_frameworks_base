@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS control center editor: a control that can be added (a row of the "More controls"
+     card; TileAdapter rounds the card's first and last rows) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingEnd="5dp"
+    android:paddingStart="5dp">
+
+    <LinearLayout
+        android:id="@+id/kiroos_edit_row"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="8dp"
+        android:paddingStart="12dp">
+
+        <ImageView
+            android:id="@+id/kiroos_edit_icon"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:importantForAccessibility="no"
+            android:padding="8dp"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:importantForAccessibility="noHideDescendants"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/kiroos_edit_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/qs_text"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/kiroos_edit_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/qs_subhead"
+                android:textSize="12.5sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:importantForAccessibility="no"
+            android:scaleType="center"
+            android:src="@drawable/kiroos_edit_add" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/kiroos_edit_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1px"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="62dp"
+        android:background="@color/qs_tile_divider" />
+</FrameLayout>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS control center editor: a section's title and hint (TileAdapter) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="6dp"
+    android:paddingEnd="9dp"
+    android:paddingStart="9dp"
+    android:paddingTop="22dp">
+
+    <TextView
+        android:id="@+id/kiroos_edit_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/qs_text"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/kiroos_edit_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="@color/qs_subhead"
+        android:textSize="13sp" />
+</LinearLayout>

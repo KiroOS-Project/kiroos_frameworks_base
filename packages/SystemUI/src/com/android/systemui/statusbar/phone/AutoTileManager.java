@@ -72,8 +72,8 @@ public class AutoTileManager {
         }
         if (!Prefs.getBoolean(context, Key.QS_KIRO_SCREEN_RECORD_ADDED, false)) {
             // KiroOS: the screen recorder lives in the control center (it has no app icon).
-            // Added once, at the end (the 9th tile fills the first page); removing it from the
-            // tile editor is final.
+            // Added once, at the end, for phones that had their tiles before it (new phones
+            // have it in quick_settings_tiles_default); removing it in the editor is final.
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {

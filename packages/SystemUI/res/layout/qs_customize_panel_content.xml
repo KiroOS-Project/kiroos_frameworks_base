@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
      Copyright (C) 2016 The Android Open Source Project
+     Copyright (C) 2026 KiroOS
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -15,23 +16,75 @@
      limitations under the License.
 -->
 
+<!-- KiroOS control center editor (QSCustomizer): Reset, the title and Done over TileAdapter's
+     list. On the control center's own surface colour, in both themes. -->
 <merge xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <Toolbar
-        android:id="@*android:id/action_bar"
+    <LinearLayout
+        android:id="@+id/kiroos_edit_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
-        android:navigationContentDescription="@*android:string/action_bar_up_description"
-        style="?android:attr/toolbarStyle" />
+        android:layout_height="56dp"
+        android:layout_marginTop="@*android:dimen/status_bar_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="16dp"
+        android:paddingStart="8dp">
+
+        <TextView
+            android:id="@+id/kiroos_edit_reset"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:minWidth="64dp"
+            android:paddingEnd="8dp"
+            android:paddingStart="8dp"
+            android:singleLine="true"
+            android:text="@string/kiroos_edit_reset"
+            android:textColor="@color/kiroos_qs_accent_text"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/kiroos_edit_header_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:paddingEnd="8dp"
+            android:paddingStart="8dp"
+            android:singleLine="true"
+            android:text="@string/kiroos_edit_title"
+            android:textColor="@color/qs_text"
+            android:textSize="17sp" />
+
+        <TextView
+            android:id="@+id/kiroos_edit_done"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/kiroos_detail_btn_primary"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:minWidth="72dp"
+            android:paddingEnd="18dp"
+            android:paddingStart="18dp"
+            android:singleLine="true"
+            android:text="@string/kiroos_edit_done"
+            android:textColor="@color/qs_tile_tint_active"
+            android:textSize="15sp" />
+    </LinearLayout>
 
     <android.support.v7.widget.RecyclerView
         android:id="@android:id/list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:scrollIndicators="top"
-        android:scrollbars="vertical"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp"
+        android:paddingEnd="11dp"
+        android:paddingStart="11dp"
+        android:scrollbars="none"
         android:importantForAccessibility="no" />
 
     <View
@@ -39,5 +92,5 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/navigation_bar_size"
         android:layout_gravity="bottom"
-        android:background="@color/kiroos_edit_nav_bg" />
+        android:background="@color/kiroos_panel_bg" />
 </merge>

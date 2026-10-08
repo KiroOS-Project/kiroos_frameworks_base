@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS: the control center editor (QSCustomizer / TileAdapter) -->
+<resources>
+    <string name="kiroos_edit_title">Пункт управления</string>
+    <string name="kiroos_edit_done">Готово</string>
+    <string name="kiroos_edit_reset">Сбросить</string>
+    <string name="kiroos_edit_included">В пункте управления</string>
+    <string name="kiroos_edit_included_hint">Нажмите и удерживайте элемент, чтобы переместить его. Нажмите −, чтобы убрать его.</string>
+    <string name="kiroos_edit_more">Другие элементы</string>
+    <string name="kiroos_edit_more_hint">Нажмите на элемент, чтобы добавить его.</string>
+    <string name="kiroos_edit_page">Страница %d</string>
+    <string name="kiroos_edit_top_row">Всегда сверху</string>
+    <string name="kiroos_edit_empty">Пункт управления пуст. Добавьте элементы из списка ниже.</string>
+    <string name="kiroos_edit_all_added">Все элементы уже в пункте управления.</string>
+    <string name="kiroos_edit_remove">Убрать %s</string>
+    <string name="kiroos_edit_add">Добавить %s</string>
+    <string name="kiroos_edit_added">%s: добавлено</string>
+    <string name="kiroos_edit_removed">%s: убрано</string>
+    <string name="kiroos_edit_position">%1$s, позиция %2$d</string>
+    <string name="kiroos_edit_move_earlier">Переместить выше</string>
+    <string name="kiroos_edit_move_later">Переместить ниже</string>
+    <string name="kiroos_edit_reset_title">Сбросить пункт управления?</string>
+    <string name="kiroos_edit_reset_text">Стандартные элементы вернутся в исходном порядке.</string>
+</resources>
