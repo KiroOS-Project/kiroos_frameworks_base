@@ -208,6 +208,11 @@ public class TileAdapter extends RecyclerView.Adapter<TileAdapter.Holder>
             if (t.state instanceof QSTile.BooleanState) {
                 ((QSTile.BooleanState) t.state).value = false;
             }
+            // the live battery meter cuts its bolt out (XOR paint): redrawn in a moving list it
+            // could show pink. The editor needs only the picture
+            if ("battery".equals(t.spec)) {
+                t.state.icon = QSTile.ResourceIcon.get(R.drawable.kiroos_edit_battery);
+            }
             mInfos.put(t.spec, t);
             added = true;
         }
