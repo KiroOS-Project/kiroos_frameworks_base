@@ -158,7 +158,8 @@ public class AppTransition implements Dump {
     private static final int MAX_CLIP_REVEAL_TRANSITION_DURATION = 420;
     // KiroOS launch zoom (apps from the launcher, widgets, cards). 2.1.1: 380 -> 340 ms, the
     // emphasized curve already covers the screen at about 40% of it, the rest is the settle.
-    private static final int KIRO_LAUNCH_DURATION = 340;
+    // 3.0 (Home 2.0): 310 ms, the icon leaves as the window grows out of it
+    private static final int KIRO_LAUNCH_DURATION = 310;
     /**
      * the home steps back while the app grows out of the icon; 2.1.1: gone in 190 ms (was 260)
      * so for most of the launch SurfaceFlinger blends two layers (wallpaper, app), not three
@@ -1019,8 +1020,9 @@ public class AppTransition implements Dump {
         fade.setInterpolator(mLinearOutSlowInInterpolator);
         // the app follows its way down to the icon and melts into it on arrival (a little
         // longer than before, 2.1.1: the last 26%, so the hand-over to the icon is softer)
-        fade.setStartOffset(KIRO_CLOSE_DURATION * 74 / 100);
-        fade.setDuration(KIRO_CLOSE_DURATION * 26 / 100);
+        // 3.0: from 66%, as Kiro Home 2.0 brings the icon back to catch it (CATCH_DELAY 210)
+        fade.setStartOffset(KIRO_CLOSE_DURATION * 66 / 100);
+        fade.setDuration(KIRO_CLOSE_DURATION * 34 / 100);
         set.addAnimation(fade);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
