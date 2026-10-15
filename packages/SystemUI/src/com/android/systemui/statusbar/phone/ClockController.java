@@ -29,8 +29,8 @@ public class ClockController implements TunerService.Tunable {
     public static final String CLOCK_POSITION = "cmsystem:status_bar_clock";
     public static final String CLOCK_STYLE = "cmsystem:status_bar_am_pm";
 
-    /* KiroOS Beta 4: the clock sits on the left, like modern Android, until the user picks
-     * another place (Settings > Status bar > Clock position; CMParts has the same default) */
+    /* KiroOS Beta 4: the clock always sits on the left, like modern phones; the Clock position
+     * setting is gone from CMParts and an old saved value is ignored */
     public static final int CLOCK_POSITION_DEFAULT = CLOCK_POSITION_LEFT;
 
     private final NotificationIconAreaController mNotificationIconAreaController;
@@ -95,7 +95,7 @@ public class ClockController implements TunerService.Tunable {
         Log.d(TAG, "onTuningChanged key=" + key + " value=" + newValue);
 
         if (CLOCK_POSITION.equals(key)) {
-            mClockPosition = newValue == null ? CLOCK_POSITION_DEFAULT : Integer.valueOf(newValue);
+            mClockPosition = CLOCK_POSITION_DEFAULT;
         } else if (CLOCK_STYLE.equals(key)) {
             mAmPmStyle = newValue == null ? AM_PM_STYLE_GONE : Integer.valueOf(newValue);
         } else if (CLOCK_SECONDS.equals(key)) {
