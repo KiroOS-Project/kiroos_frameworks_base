@@ -755,7 +755,9 @@ public class AppTransition implements Dump {
      */
     private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight) {
         final AnimationSet set = new AnimationSet(false);
-        if (appWidth > 0 && appHeight > 0 && !from.isEmpty()) {
+        if (appWidth > 0 && appHeight > 0 && kiroIsWidget(from)) {
+            addKiroWidgetMorph(set, from, appWidth, appHeight, true);
+        } else if (appWidth > 0 && appHeight > 0 && !from.isEmpty()) {
             addKiroIconMorph(set, from, appWidth, appHeight, kiroLaunchScale(from, appWidth), true);
         } else {
             final Animation scale = new ScaleAnimation(0.3f, 1f, 0.3f, 1f,
@@ -949,7 +951,7 @@ public class AppTransition implements Dump {
         }
         final Rect r = new Rect(mDefaultNextAppTransitionAnimationSpec.rect);
         mKiroIconRects.put(taskId, r);
-        mKiroFromWidget.put(taskId, r.width() >= r.height() * 3 / 2);
+        mKiroFromWidget.put(taskId, kiroIsWidget(r));
         while (mKiroIconRects.size() > 48) {
             mKiroFromWidget.delete(mKiroIconRects.keyAt(0));
             mKiroIconRects.removeAt(0); // the oldest tasks have the lowest ids
@@ -971,6 +973,39 @@ public class AppTransition implements Dump {
                 : new ScaleAnimation(1f, s, 1f, s, pivotX, pivotY);
         final Animation clip = open ? new ClipRectAnimation(square, full)
                 : new ClipRectAnimation(full, square);
+        final int duration = open ? KIRO_LAUNCH_DURATION : KIRO_CLOSE_DURATION;
+        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        scale.setDuration(duration);
+        clip.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        clip.setDuration(duration);
+        set.addAnimation(scale);
+        set.addAnimation(clip);
+    }
+
+    /** Beta 4: a widget is wide (a bar, a card); an icon with its label is about square */
+    private static boolean kiroIsWidget(Rect r) {
+        return r != null && !r.isEmpty() && r.width() >= r.height() * 3 / 2;
+    }
+
+    /**
+     * Beta 4, the widget morph (like iOS): the app opens out of the widget's own rectangle and
+     * closes back into it. The window is scaled to the widget's width and cropped to the
+     * widget's shape from its top, so the top of the app sits exactly on the widget, as a card
+     * of the same size; scale and crop then open to the full screen together (or close).
+     * Solving x' = P + s (x - P) for the crop's corner landing on the widget's corner gives
+     * the pivot.
+     */
+    private void addKiroWidgetMorph(AnimationSet set, Rect widget, int w, int h, boolean open) {
+        final float s = Math.max(0.1f, Math.min(0.96f, widget.width() / (float) w));
+        final int cropH = Math.min(h, Math.round(widget.height() / s));
+        final Rect card = new Rect(0, 0, w, cropH);
+        final Rect full = new Rect(0, 0, w, h);
+        final float pivotX = widget.left / (1f - s);
+        final float pivotY = widget.top / (1f - s);
+        final Animation scale = open ? new ScaleAnimation(s, 1f, s, 1f, pivotX, pivotY)
+                : new ScaleAnimation(1f, s, 1f, s, pivotX, pivotY);
+        final Animation clip = open ? new ClipRectAnimation(card, full)
+                : new ClipRectAnimation(full, card);
         final int duration = open ? KIRO_LAUNCH_DURATION : KIRO_CLOSE_DURATION;
         scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
         scale.setDuration(duration);
@@ -1030,9 +1065,14 @@ public class AppTransition implements Dump {
         }
         final Rect icon = new Rect(r);
         icon.offset(-frame.left, -frame.top);
-        final float s = Math.max(0.06f, Math.min(0.6f, icon.width() / (float) w));
         final AnimationSet set = new AnimationSet(false);
-        addKiroIconMorph(set, icon, w, h, s, false);
+        if (kiroIsWidget(icon)) {
+            // back into the widget, as the card it opened from
+            addKiroWidgetMorph(set, icon, w, h, false);
+        } else {
+            final float s = Math.max(0.06f, Math.min(0.6f, icon.width() / (float) w));
+            addKiroIconMorph(set, icon, w, h, s, false);
+        }
         final Animation fade = new AlphaAnimation(1f, 0f);
         fade.setInterpolator(mLinearOutSlowInInterpolator);
         // the app follows its way down to the icon and melts into it on arrival (a little
