@@ -903,6 +903,13 @@ public class AppTransition implements Dump {
         if (t == null || t.mTask == null) {
             return null;
         }
+        // Beta 4: an app opened from a widget goes back into that widget, not into its icon
+        if (mKiroFromWidget.get(t.mTask.mTaskId)) {
+            final Rect widget = mKiroIconRects.get(t.mTask.mTaskId);
+            if (widget != null && !widget.isEmpty()) {
+                return widget;
+            }
+        }
         final android.util.ArrayMap<String, Rect> icons = mKiroHomeIcons;
         final WindowState w = t.findMainWindow();
         if (icons != null && w != null) {
@@ -925,6 +932,13 @@ public class AppTransition implements Dump {
     }
     /** the icon each task was opened from (screen coordinates), for the way back */
     private final SparseArray<Rect> mKiroIconRects = new SparseArray<>();
+    /**
+     * Beta 4: tasks opened from a widget. Icons and widgets both launch with a scale-up from
+     * the tapped view; an icon (with its label) is about square, a widget is wide (a bar, a
+     * card), so the shape tells them apart.
+     */
+    private final android.util.SparseBooleanArray mKiroFromWidget =
+            new android.util.SparseBooleanArray();
 
     private void kiroRememberIcon(boolean enter, int taskId) {
         kiroObserveHomeIcons();
@@ -933,8 +947,11 @@ public class AppTransition implements Dump {
                 || mDefaultNextAppTransitionAnimationSpec.rect.isEmpty()) {
             return;
         }
-        mKiroIconRects.put(taskId, new Rect(mDefaultNextAppTransitionAnimationSpec.rect));
+        final Rect r = new Rect(mDefaultNextAppTransitionAnimationSpec.rect);
+        mKiroIconRects.put(taskId, r);
+        mKiroFromWidget.put(taskId, r.width() >= r.height() * 3 / 2);
         while (mKiroIconRects.size() > 48) {
+            mKiroFromWidget.delete(mKiroIconRects.keyAt(0));
             mKiroIconRects.removeAt(0); // the oldest tasks have the lowest ids
         }
     }
