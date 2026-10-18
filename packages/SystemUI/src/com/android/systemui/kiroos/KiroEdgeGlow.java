@@ -40,14 +40,13 @@ import com.android.systemui.SystemUI;
 /**
  * Kiro Edge Glow: a soft light along the whole edge of the screen.
  *
- *   kAI       while an answer is being written, a blue-violet light turns slowly round
  *   charging  when the cable goes in, a wave of light runs once round the screen
  *   music     Pulse Music sends its beats; the edge pulses in time
  *   notify    two soft pulses for a new notification, only on the always-on display
  *             (with the screen on the notification shows as a card)
  *
  * Apps talk to it with the broadcast com.kiroos.intent.EDGE_GLOW (package
- * com.android.systemui), extra "mode": kai_start, kai_stop, beat (+ float "level" 0..1).
+ * com.android.systemui), extra "mode": beat (+ float "level" 0..1). kAI no longer glows.
  * Settings.System kiroos_edge_glow (default on) turns it off. The window exists only while
  * something glows.
  */
@@ -106,14 +105,9 @@ public class KiroEdgeGlow extends SystemUI {
                     }
                     return;
                 }
+                // Beta 4.1: no glow while kAI writes any more (kai_start / kai_stop ignored)
                 final String mode = intent.getStringExtra("mode");
-                if ("kai_start".equals(mode)) {
-                    mKai = true;
-                    play(KAI, 2600, ValueAnimator.INFINITE);
-                } else if ("kai_stop".equals(mode)) {
-                    mKai = false;
-                    stop();
-                } else if ("beat".equals(mode) && !mKai) {
+                if ("beat".equals(mode) && !mKai) {
                     final float level = intent.getFloatExtra("level", 0.6f);
                     ensureView();
                     mView.beat(Math.max(0.15f, Math.min(1f, level)));

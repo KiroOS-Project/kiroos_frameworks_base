@@ -414,6 +414,14 @@ public class StackScrollAlgorithm {
                 childState.location = StackViewState.LOCATION_FIRST_HUN;
             }
             boolean isTopEntry = topHeadsUpEntry == row;
+            // KiroOS Beta 4.1: with the shade closed the stack is only a few pixels tall, so the
+            // heads-up card counts as "in the bottom stack" and the KiroOS bottom-stack fade
+            // (updateStateForChildTransitioningInBottom / FullyInBottomStack) hid it or made it
+            // see-through: new messages did not pop up while the phone was in use. A heads-up
+            // card is always fully shown.
+            childState.hidden = false;
+            childState.alpha = 1.0f;
+            childState.shadowAlpha = 1.0f;
             float unmodifiedEndLocation = childState.yTranslation + childState.height;
             if (mIsExpanded) {
                 // Ensure that the heads up is always visible even when scrolled off

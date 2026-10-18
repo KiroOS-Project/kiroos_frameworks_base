@@ -6624,6 +6624,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
         final boolean isInjected = (policyFlags & WindowManagerPolicy.FLAG_INJECTED) != 0;
 
+        // KiroOS: the touch keys beside Home (Back, Recents) are dark on the always-on display
+        // and with the screen off, so they do nothing there either: no vibration, no action.
+        if (!interactive && !isInjected && ((policyFlags & WindowManagerPolicy.FLAG_VIRTUAL) != 0
+                || keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_APP_SWITCH
+                || keyCode == KeyEvent.KEYCODE_MENU)) {
+            return 0;
+        }
+
         // If screen is off then we treat the case where the keyguard is open but hidden
         // the same as if it were open and in front.
         // This will prevent any keys other than the power button from waking the screen
