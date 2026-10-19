@@ -948,10 +948,12 @@ public class AudioService extends IAudioService.Stub {
         }
         android.database.Cursor c = null;
         try {
+            // SettingsProvider takes no SQL selection: all of them, filtered here
             c = cr.query(Settings.System.CONTENT_URI, new String[] {"name", "value"},
-                    "name LIKE 'volume_music%'", null, null);
+                    null, null, null);
             while (c != null && c.moveToNext()) {
                 final String name = c.getString(0);
+                if (name == null || !name.startsWith("volume_music")) continue;
                 try {
                     final int v = Integer.parseInt(c.getString(1));
                     final int scaled = Math.max(0, Math.min(max, Math.round(v * max / (float) prev)));
