@@ -48,8 +48,8 @@ import com.android.systemui.volume.VolumeDialogController.StreamState;
 import java.io.PrintWriter;
 
 /**
- * KiroOS Beta 4.1: the volume panel, rewritten in the KiroOS design. A glass card at the right
- * edge, centred on the volume keys: the ringer button (sound, vibrate, silent), one tall slider
+ * KiroOS Beta 4.1: the volume panel, rewritten in the KiroOS design. A glass card at the left
+ * edge, next to the S6's volume keys: the ringer button (sound, vibrate, silent), one tall slider
  * for the stream the keys change, and a "more" button that slides out media, ringtone and alarm
  * side by side. It slides in from the edge and away after a few seconds without a touch. The
  * volumes, the ringer mode and the safety warning are the same as before (VolumeDialogController).
@@ -148,7 +148,8 @@ public class KiroVolumeDialog {
         lp.type = mWindowType;
         lp.format = PixelFormat.TRANSLUCENT;
         lp.setTitle("KiroVolumeDialog");
-        lp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        // the S6 family has its volume keys on the left side: the panel sits right beside them
+        lp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
         lp.x = dp(10);
         lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
         lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -164,7 +165,7 @@ public class KiroVolumeDialog {
 
         final FrameLayout root = new FrameLayout(mContext);
         root.setClipChildren(false);
-        root.setPadding(dp(14), dp(14), dp(4), dp(14));
+        root.setPadding(dp(4), dp(14), dp(14), dp(14));
         mCard = new LinearLayout(mContext);
         mCard.setOrientation(LinearLayout.HORIZONTAL);
         mCard.setGravity(Gravity.BOTTOM);
@@ -175,14 +176,8 @@ public class KiroVolumeDialog {
         mCard.setElevation(dp(14));
         mCard.setPadding(dp(10), dp(12), dp(10), dp(12));
         root.addView(mCard, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END));
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START));
 
-        // the other volumes, hidden until "more"
-        mExtras = new LinearLayout(mContext);
-        mExtras.setOrientation(LinearLayout.HORIZONTAL);
-        mExtras.setGravity(Gravity.BOTTOM);
-        mExtras.setVisibility(View.GONE);
-        mCard.addView(mExtras);
 
         final LinearLayout main = new LinearLayout(mContext);
         main.setOrientation(LinearLayout.VERTICAL);
@@ -211,6 +206,13 @@ public class KiroVolumeDialog {
         });
         main.addView(mMore, new LinearLayout.LayoutParams(dp(44), dp(44)));
         mCard.addView(main);
+
+        // the other volumes, hidden until "more": they slide out to the right of the main one
+        mExtras = new LinearLayout(mContext);
+        mExtras.setOrientation(LinearLayout.HORIZONTAL);
+        mExtras.setGravity(Gravity.BOTTOM);
+        mExtras.setVisibility(View.GONE);
+        mCard.addView(mExtras);
 
         mDialog.setContentView(root);
     }
@@ -284,7 +286,7 @@ public class KiroVolumeDialog {
         mController.notifyVisible(true);
         if (mState != null) updateH(false);
         mDialog.show();
-        mCard.setTranslationX(dp(90));
+        mCard.setTranslationX(-dp(90));
         mCard.setAlpha(0f);
         mCard.animate().translationX(0f).alpha(1f).setDuration(260)
                 .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0.9f, 0.1f, 1f))
@@ -296,7 +298,7 @@ public class KiroVolumeDialog {
         if (!mShowing) return;
         mShowing = false;
         mController.notifyVisible(false);
-        mCard.animate().translationX(dp(90)).alpha(0f).setDuration(200)
+        mCard.animate().translationX(-dp(90)).alpha(0f).setDuration(200)
                 .setInterpolator(new android.view.animation.PathInterpolator(0.4f, 0f, 1f, 1f))
                 .withEndAction(new Runnable() {
                     @Override
@@ -451,8 +453,8 @@ public class KiroVolumeDialog {
             for (int i = 0; i < mExtras.getChildCount(); i++) {
                 final View c = mExtras.getChildAt(i);
                 c.setAlpha(0f);
-                c.setTranslationX(dp(40));
-                c.animate().alpha(1f).translationX(0f).setStartDelay(40L * (mExtras.getChildCount() - 1 - i))
+                c.setTranslationX(-dp(40));
+                c.animate().alpha(1f).translationX(0f).setStartDelay(40L * i)
                         .setDuration(260)
                         .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0.9f, 0.1f, 1f))
                         .start();
@@ -515,7 +517,7 @@ public class KiroVolumeDialog {
             col.addView(label, llp);
             final LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            clp.setMarginEnd(dp(2));
+            clp.setMarginStart(dp(4));
             clp.bottomMargin = dp(54);
             mExtras.addView(col, clp);
             bindPill(p, stream, false);

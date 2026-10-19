@@ -675,6 +675,7 @@ public class AudioService extends IAudioService.Stub {
             MAX_STREAM_VOLUME[AudioSystem.STREAM_MUSIC] = maxVolume;
             AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_MUSIC] = (maxVolume * 3) / 4;
         }
+        kiroRescaleMusicVolumes(maxVolume);
 
         sSoundEffectVolumeDb = context.getResources().getInteger(
                 com.android.internal.R.integer.config_soundEffectVolumeDb);
@@ -930,6 +931,42 @@ public class AudioService extends IAudioService.Stub {
         onIndicateSystemReady();
         // indicate the end of reconfiguration phase to audio HAL
         AudioSystem.setParameters("restarting=false");
+    }
+
+    /**
+     * KiroOS Beta 4.1: media volume in 30 steps (ro.config.media_vol_steps) for finer control;
+     * Beta 4 and older saved the media volumes as steps of 15. The saved steps are scaled once to
+     * the new count, before the volumes are read, so nothing gets quieter or louder after the
+     * update. The step count in use is kept in Settings.Global kiroos_music_vol_steps.
+     */
+    private void kiroRescaleMusicVolumes(int max) {
+        final ContentResolver cr = mContext.getContentResolver();
+        final int prev = Settings.Global.getInt(cr, "kiroos_music_vol_steps", 15);
+        if (prev == max || prev <= 0) {
+            if (prev != max) Settings.Global.putInt(cr, "kiroos_music_vol_steps", max);
+            return;
+        }
+        android.database.Cursor c = null;
+        try {
+            c = cr.query(Settings.System.CONTENT_URI, new String[] {"name", "value"},
+                    "name LIKE 'volume_music%'", null, null);
+            while (c != null && c.moveToNext()) {
+                final String name = c.getString(0);
+                try {
+                    final int v = Integer.parseInt(c.getString(1));
+                    final int scaled = Math.max(0, Math.min(max, Math.round(v * max / (float) prev)));
+                    Settings.System.putInt(cr, name, scaled);
+                } catch (NumberFormatException e) {
+                    // not a step
+                }
+            }
+            Settings.Global.putInt(cr, "kiroos_music_vol_steps", max);
+            Log.i(TAG, "KiroOS: media volumes scaled from " + prev + " to " + max + " steps");
+        } catch (RuntimeException e) {
+            Log.w(TAG, "KiroOS: media volumes not scaled", e);
+        } finally {
+            if (c != null) c.close();
+        }
     }
 
     private void createAudioSystemThread() {

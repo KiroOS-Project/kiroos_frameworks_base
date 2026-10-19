@@ -699,14 +699,19 @@ public class KeyguardViewMediator extends SystemUI {
         mDeviceInteractive = mPM.isInteractive();
 
         mLockSounds = new SoundPool(1, AudioManager.STREAM_SYSTEM, 0);
-        String soundPath = Settings.Global.getString(cr, Settings.Global.LOCK_SOUND);
+        // KiroOS Beta 4.1: the KiroOS lock / unlock sounds in place of the stock ones, read here
+        // directly (the settings are switched a minute after boot, when SystemUI has long loaded
+        // the old paths)
+        String soundPath = kiroSound(Settings.Global.getString(cr, Settings.Global.LOCK_SOUND),
+                "Lock.ogg", "Kiro_Lock.ogg");
         if (soundPath != null) {
             mLockSoundId = mLockSounds.load(soundPath, 1);
         }
         if (soundPath == null || mLockSoundId == 0) {
             Log.w(TAG, "failed to load lock sound from " + soundPath);
         }
-        soundPath = Settings.Global.getString(cr, Settings.Global.UNLOCK_SOUND);
+        soundPath = kiroSound(Settings.Global.getString(cr, Settings.Global.UNLOCK_SOUND),
+                "Unlock.ogg", "Kiro_Unlock.ogg");
         if (soundPath != null) {
             mUnlockSoundId = mLockSounds.load(soundPath, 1);
         }
@@ -795,7 +800,11 @@ public class KeyguardViewMediator extends SystemUI {
                 mPendingLock = true;
             }
 
-            if (mPendingLock) {
+            // KiroOS Beta 4.1: the lock sound also when the power key turns the screen off and the
+            // lock comes a few seconds later, or the lock screen was already up: it is the sound
+            // of the screen going off (not on a call, not for a timeout)
+            if (mPendingLock || (why == WindowManagerPolicy.OFF_BECAUSE_OF_USER
+                    && TelephonyManager.EXTRA_STATE_IDLE.equals(mPhoneState))) {
                 playSounds(true);
             }
         }
@@ -1645,6 +1654,15 @@ public class KeyguardViewMediator extends SystemUI {
             }
         }
         Trace.endSection();
+    }
+
+    /** KiroOS: a stock UI sound path (or none) becomes the KiroOS one when it is on the phone */
+    private static String kiroSound(String path, String stock, String kiro) {
+        final String ui = "/system/media/audio/ui/";
+        if ((path == null || path.equals(ui + stock)) && new java.io.File(ui + kiro).exists()) {
+            return ui + kiro;
+        }
+        return path;
     }
 
     private void playSounds(boolean locked) {

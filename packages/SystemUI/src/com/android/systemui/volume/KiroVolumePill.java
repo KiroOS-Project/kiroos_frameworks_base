@@ -113,9 +113,10 @@ public class KiroVolumePill extends View {
             invalidate();
             return;
         }
+        // from wherever the fill is now (a held key retargets it every step without restarting)
         mGlide = ValueAnimator.ofFloat(mShown, target);
-        mGlide.setDuration(220);
-        mGlide.setInterpolator(EASE);
+        mGlide.setDuration(160);
+        mGlide.setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f));
         mGlide.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator a) {
@@ -137,9 +138,10 @@ public class KiroVolumePill extends View {
         canvas.save();
         canvas.clipPath(mClip);
         canvas.drawRect(mRect, mTrack);
-        // the fill keeps at least a circle at the foot so the icon always sits on colour
-        final float fillTop = h - Math.max(w, h * Math.max(0f, Math.min(1f, mShown)));
-        if (mShown > 0.001f) {
+        // Beta 4.1: the fill follows the level all the way down (it kept a whole circle at the
+        // foot before, which vanished at once on the last step: the "drop to 0")
+        final float fillTop = h - h * Math.max(0f, Math.min(1f, mShown));
+        if (fillTop < h) {
             canvas.drawRect(0, fillTop, w, h, mFill);
         }
         canvas.restore();
@@ -148,7 +150,8 @@ public class KiroVolumePill extends View {
             final int left = Math.round((w - s) / 2f);
             final int top = Math.round(h - w / 2f - s / 2f);
             mIcon.setBounds(left, top, left + s, top + s);
-            mIcon.setTint(mShown > 0.001f ? mIconOnFill : mIconOnTrack);
+            // white once the fill reaches the icon's middle
+            mIcon.setTint(fillTop <= top + s / 2f ? mIconOnFill : mIconOnTrack);
             mIcon.draw(canvas);
         }
     }
