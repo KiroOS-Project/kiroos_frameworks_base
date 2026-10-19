@@ -815,6 +815,7 @@ public class AppTransition implements Dump {
      */
     private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight,
             boolean withIcon) {
+
         final AnimationSet set = new AnimationSet(false);
         if (appWidth > 0 && appHeight > 0 && kiroIsWidget(from)) {
             addKiroWidgetMorph(set, from, appWidth, appHeight, true);
@@ -883,6 +884,7 @@ public class AppTransition implements Dump {
      */
     private Animation createKiroIconThumbnail(int appWidth, int appHeight) {
         final Rect icon = mTmpRect;
+
         final float s = kiroLaunchScale(icon, appWidth);
         final float pivotX = (icon.exactCenterX() - s * appWidth / 2f) / (1f - s);
         final float pivotY = (icon.exactCenterY() - s * appHeight / 2f) / (1f - s);
@@ -1022,6 +1024,59 @@ public class AppTransition implements Dump {
      */
     private final android.util.SparseBooleanArray mKiroFromWidget =
             new android.util.SparseBooleanArray();
+    /** Beta 4.1: the picture of the icon each task was opened from (at most 8, ~200 KB each) */
+    private final SparseArray<Bitmap> mKiroIconPictures = new SparseArray<>();
+    /** the icon flight of the close being prepared (createKiroCloseToIcon -> placer) */
+    private KiroIconFlight mKiroPendingFlight;
+
+    /**
+     * Beta 4.1 "Fluida": the icon flying back with a closing app. The home cannot draw while
+     * its window animates in (Activity.onEnterAnimationComplete), so the icon cannot fly there:
+     * it flies here, as a surface of its own (the launch thumbnail) between the home and the
+     * closing app. It follows the rectangle the window shrinks through (the same pivot, crop
+     * and spring as addKiroIconMorph) and shows as the app dissolves (55-90% of the way), so
+     * what is seen is the app turning back into its icon and landing in its place.
+     */
+    static final class KiroIconFlight extends Animation {
+        final Bitmap picture;
+        final int taskId;
+        private final float mEnd, mPivotX, mPivotY, mW, mH, mIconW, mIconH;
+
+        KiroIconFlight(int taskId, Bitmap picture, Rect icon, int w, int h, float end) {
+            this.taskId = taskId;
+            this.picture = picture;
+            mEnd = end;
+            mW = w;
+            mH = h;
+            mIconW = Math.max(1, picture.getWidth());
+            mIconH = Math.max(1, picture.getHeight());
+            mPivotX = (icon.exactCenterX() - end * w / 2f) / (1f - end);
+            mPivotY = (icon.exactCenterY() - end * h / 2f) / (1f - end);
+            setInterpolator(KIRO_CLOSE_INTERPOLATOR);
+            setDuration(KIRO_CLOSE_DURATION);
+            setFillAfter(true);
+        }
+
+        @Override
+        protected void applyTransformation(float p, android.view.animation.Transformation t) {
+            final float s = 1f - p * (1f - mEnd);
+            final float cx = mPivotX + s * (mW / 2f - mPivotX);
+            final float cy = mPivotY + s * (mH / 2f - mPivotY); // the crop stays centred
+            final float k = s * mW / mIconW;
+            final android.graphics.Matrix m = t.getMatrix();
+            m.setScale(k, k);
+            m.postTranslate(cx - k * mIconW / 2f, cy - k * mIconH / 2f);
+            t.setAlpha(Math.max(0f, Math.min(1f, (p - 0.55f) / 0.35f)));
+        }
+    }
+
+    /** the icon flight prepared for this closing task, once (WindowSurfacePlacer) */
+    KiroIconFlight takeKiroCloseFlight(int taskId) {
+        final KiroIconFlight f = mKiroPendingFlight;
+        if (f == null || f.taskId != taskId) return null;
+        mKiroPendingFlight = null;
+        return f;
+    }
 
     private void kiroRememberIcon(boolean enter, int taskId) {
         kiroObserveHomeIcons();
@@ -1033,6 +1088,15 @@ public class AppTransition implements Dump {
         final Rect r = new Rect(mDefaultNextAppTransitionAnimationSpec.rect);
         mKiroIconRects.put(taskId, r);
         mKiroFromWidget.put(taskId, kiroIsWidget(r));
+        // Beta 4.1: the icon's picture (the launch thumbnail), to fly back with the app
+        final Bitmap picture = mDefaultNextAppTransitionAnimationSpec.bitmap;
+        if (picture != null && !kiroIsWidget(r)) {
+            mKiroIconPictures.remove(taskId);
+            mKiroIconPictures.put(taskId, picture);
+            while (mKiroIconPictures.size() > 8) {
+                mKiroIconPictures.removeAt(0); // the oldest tasks have the lowest ids
+            }
+        }
         while (mKiroIconRects.size() > 48) {
             mKiroFromWidget.delete(mKiroIconRects.keyAt(0));
             mKiroIconRects.removeAt(0); // the oldest tasks have the lowest ids
@@ -1156,6 +1220,9 @@ public class AppTransition implements Dump {
         } else {
             final float s = Math.max(0.06f, Math.min(0.6f, icon.width() / (float) w));
             addKiroIconMorph(set, icon, w, h, s, false);
+            final Bitmap picture = mKiroIconPictures.get(taskId);
+            mKiroPendingFlight = picture == null ? null
+                    : new KiroIconFlight(taskId, picture, icon, w, h, s);
         }
         final Animation fade = new AlphaAnimation(1f, 0f);
         fade.setInterpolator(mLinearOutSlowInInterpolator);
@@ -2146,7 +2213,11 @@ public class AppTransition implements Dump {
             mNextAppTransitionType = scaleUp ? NEXT_TRANSIT_TYPE_THUMBNAIL_SCALE_UP
                     : NEXT_TRANSIT_TYPE_THUMBNAIL_SCALE_DOWN;
             mNextAppTransitionScaleUp = scaleUp;
-            putDefaultNextAppTransitionCoordinates(startX, startY, 0, 0, srcThumb);
+            // KiroOS: the start rect is the thumbnail's own (it was 0 x 0, so the launch zoom
+            // saw an empty rect and the stock thumbnail zoom ran instead of the icon morph)
+            putDefaultNextAppTransitionCoordinates(startX, startY,
+                    srcThumb != null ? srcThumb.getWidth() : 0,
+                    srcThumb != null ? srcThumb.getHeight() : 0, srcThumb);
             postAnimationCallback();
             mNextAppTransitionCallback = startedCallback;
         } else {

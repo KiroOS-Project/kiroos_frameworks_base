@@ -1322,6 +1322,14 @@ class WindowSurfacePlacer {
             wtoken.inPendingTransaction = false;
             mService.setTokenVisibilityLocked(wtoken, animLp, false, transit, false,
                     voiceInteraction);
+            // KiroOS Beta 4.1: the app's icon flies back with it (AppTransition.KiroIconFlight)
+            if (wtoken.mTask != null && appAnimator.animation != null) {
+                final AppTransition.KiroIconFlight flight =
+                        mService.mAppTransition.takeKiroCloseFlight(wtoken.mTask.mTaskId);
+                if (flight != null) {
+                    createKiroIconFlight(appAnimator, flight);
+                }
+            }
             wtoken.updateReportedVisibilityLocked();
             // Force the allDrawn flag, because we want to start
             // this guy's animations regardless of whether it's
@@ -1635,6 +1643,52 @@ class WindowSurfacePlacer {
                 mService.mAnimator.mAppWindowAnimating |= appAnimator.isAnimating();
                 mService.mAnimator.orAnimating(appAnimator.showAllWindowsLocked());
             }
+        }
+    }
+
+    /**
+     * KiroOS Beta 4.1: the surface of an icon flying back with its closing app, drawn from the
+     * icon picture of the launch and layered just above the home coming back (the opening apps),
+     * so under the closing app as it dissolves into it.
+     */
+    private void createKiroIconFlight(AppWindowAnimator closing,
+            AppTransition.KiroIconFlight flight) {
+        final Bitmap picture = flight.picture;
+        if (picture.isRecycled() || picture.getConfig() == Bitmap.Config.ALPHA_8) {
+            return;
+        }
+        int homeLayer = 0;
+        for (int i = mService.mOpeningApps.size() - 1; i >= 0; i--) {
+            final AppWindowToken t = mService.mOpeningApps.valueAt(i);
+            for (int j = 0; j < t.allAppWindows.size(); j++) {
+                homeLayer = Math.max(homeLayer, t.allAppWindows.get(j).mWinAnimator.mAnimLayer);
+            }
+        }
+        if (homeLayer == 0) {
+            return; // nothing comes back under it (an app over another app)
+        }
+        final Rect dirty = new Rect(0, 0, picture.getWidth(), picture.getHeight());
+        try {
+            final Display display = mService.getDefaultDisplayContentLocked().getDisplay();
+            final SurfaceControl surface = new SurfaceControl(mService.mFxSession,
+                    "kiro icon flight", dirty.width(), dirty.height(),
+                    PixelFormat.TRANSLUCENT, SurfaceControl.HIDDEN);
+            surface.setLayerStack(display.getLayerStack());
+            final Surface draw = new Surface();
+            draw.copyFrom(surface);
+            final Canvas c = draw.lockCanvas(dirty);
+            c.drawBitmap(picture, 0, 0, null);
+            draw.unlockCanvasAndPost(c);
+            draw.release();
+            flight.restrictDuration(MAX_ANIMATION_DURATION);
+            flight.scaleCurrentDuration(mService.getTransitionAnimationScaleLocked());
+            closing.thumbnail = surface;
+            closing.thumbnailLayer = 0;
+            closing.thumbnailForceAboveLayer = homeLayer;
+            closing.thumbnailAnimation = flight;
+        } catch (Surface.OutOfResourcesException e) {
+            Slog.e(TAG, "Can't allocate the icon flight surface", e);
+            closing.clearThumbnail();
         }
     }
 
