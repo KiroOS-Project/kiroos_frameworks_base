@@ -162,38 +162,48 @@ public class AppTransition implements Dump {
     // Beta 4.1: 400 ms on a spring (see KiroSpring): the icon grows with the window and stays
     // visible through the first half, the app shows on it once it is large (createKiroLaunchZoom,
     // createKiroIconThumbnail), the way current phones open apps
-    private static final int KIRO_LAUNCH_DURATION = 400;
-    /**
-     * the home steps back while the app grows out of the icon; 2.1.1: gone in 190 ms (was 260)
-     * so for most of the launch SurfaceFlinger blends two layers (wallpaper, app), not three
-     */
-    private static final int KIRO_HOME_RECEDE_DURATION = 220;
-    /** Beta 4.1: a critically soft spring with a slight landing (about 1.5% past, then home) */
-    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR = new KiroSpring();
+    // Beta 4.1 "Fluida": the spring below settles in 620 ms (95% of the way at 260 ms). The 400 ms
+    // spring before was twice as stiff: 95% at 130 ms, so on the phone the whole zoom took 4
+    // frames and read as a jump (seen frame by frame on a screen recording).
+    private static final int KIRO_LAUNCH_DURATION = 620;
+    /** the home steps back while the app grows out of the icon, and is gone under it */
+    private static final int KIRO_HOME_RECEDE_DURATION = 300;
+    /** Beta 4.1 "Fluida": stiffness 170, damping ratio 0.80 (1.4% past the target, then home) */
+    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR =
+            new KiroSpring(0.80, 13.04, 0, KIRO_LAUNCH_DURATION);
 
     /**
-     * A damped spring, x(t) = 1 - e^(-z w t) (cos(wd t) + (z w / wd) sin(wd t)), normalised so it
-     * ends exactly at 1: it leaves quickly, glides, passes the target by a hair and settles.
+     * A damped spring in real time, started with a velocity v0 (screens per second, as a swipe
+     * hands it over): x(t) = 1 - e^(-z w t) (cos(wd t) + ((z w - v0) / wd) sin(wd t)), normalised
+     * so it ends exactly at 1 when the animation does. The same model as Kiro Home's springs, so
+     * the window and the home move as one.
      */
-    private static final class KiroSpring implements Interpolator {
-        private static final float ZETA = 0.78f;   // damping ratio: about 1.5% overshoot
-        private static final float OMEGA = 10.5f;  // natural frequency over the whole animation
-        private final float mEnd;
+    static final class KiroSpring implements Interpolator {
+        private final double mZeta;
+        private final double mOmega;
+        private final double mV0;
+        private final double mSeconds;
+        private final double mEnd;
 
-        KiroSpring() {
+        KiroSpring(double zeta, double omega, double v0, int durationMs) {
+            mZeta = zeta;
+            mOmega = omega;
+            mV0 = v0;
+            mSeconds = durationMs / 1000.0;
             mEnd = raw(1f);
         }
 
-        private static float raw(float t) {
-            final double wd = OMEGA * Math.sqrt(1 - ZETA * ZETA);
-            final double decay = Math.exp(-ZETA * OMEGA * t);
-            return (float) (1 - decay * (Math.cos(wd * t) + (ZETA * OMEGA / wd) * Math.sin(wd * t)));
+        private double raw(float t) {
+            final double s = t * mSeconds;
+            final double wd = mOmega * Math.sqrt(1 - mZeta * mZeta);
+            final double decay = Math.exp(-mZeta * mOmega * s);
+            return 1 - decay * (Math.cos(wd * s) + ((mZeta * mOmega - mV0) / wd) * Math.sin(wd * s));
         }
 
         @Override
         public float getInterpolation(float t) {
             if (t >= 1f) return 1f;
-            return raw(t) / mEnd;
+            return (float) (raw(t) / mEnd);
         }
     }
 
@@ -838,12 +848,13 @@ public class AppTransition implements Dump {
     private Animation createKiroHomeRecede(int appWidth, int appHeight) {
         final float pivotX = mTmpRect.isEmpty() ? appWidth / 2f : mTmpRect.exactCenterX();
         final float pivotY = mTmpRect.isEmpty() ? appHeight / 2f : mTmpRect.exactCenterY();
-        final Animation scale = new ScaleAnimation(1f, 0.92f, 1f, 0.92f, pivotX, pivotY);
+        // Beta 4.1 "Fluida": the home steps back in depth (to 0.9) with the app's spring
+        final Animation scale = new ScaleAnimation(1f, 0.9f, 1f, 0.9f, pivotX, pivotY);
         scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
         scale.setDuration(KIRO_LAUNCH_DURATION);
         final Animation fade = new AlphaAnimation(1f, 0f);
-        // fast out, linear in: the home clears the way as the app grows over it
-        fade.setInterpolator(mFastOutLinearInInterpolator);
+        // the home darkens away as the app grows over it
+        fade.setInterpolator(mDecelerateInterpolator);
         fade.setDuration(KIRO_HOME_RECEDE_DURATION);
         final AnimationSet set = new AnimationSet(false);
         set.addAnimation(scale);
@@ -893,9 +904,16 @@ public class AppTransition implements Dump {
         return set;
     }
 
-    /** how long a closing app takes to shrink into its icon (2.1.1: 360 -> 320 ms; Beta 4.1:
-     *  380 ms on the spring, smoother) */
-    private static final int KIRO_CLOSE_DURATION = 380;
+    /** how long a closing app takes to shrink into its icon (2.1.1: 360 -> 320 ms; Beta 4.1
+     *  "Fluida": 560 ms on its spring, 95% of the way at 266 ms) */
+    private static final int KIRO_CLOSE_DURATION = 560;
+    /**
+     * Beta 4.1 "Fluida", the way back: a little stiffer and more damped than the launch
+     * (stiffness 195, damping ratio 0.88) and started with the speed of the gesture home, so the
+     * window flies back into its icon instead of easing off.
+     */
+    private static final Interpolator KIRO_CLOSE_INTERPOLATOR =
+            new KiroSpring(0.88, 13.98, 2.2, KIRO_CLOSE_DURATION);
     /** where each app's icon sits on the home, published by Kiro Home (kiroos_home_icons) */
     private volatile android.util.ArrayMap<String, Rect> mKiroHomeIcons;
     private boolean mKiroHomeIconsObserved;
@@ -1032,9 +1050,10 @@ public class AppTransition implements Dump {
         final Animation clip = open ? new ClipRectAnimation(square, full)
                 : new ClipRectAnimation(full, square);
         final int duration = open ? KIRO_LAUNCH_DURATION : KIRO_CLOSE_DURATION;
-        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        final Interpolator spring = open ? KIRO_LAUNCH_INTERPOLATOR : KIRO_CLOSE_INTERPOLATOR;
+        scale.setInterpolator(spring);
         scale.setDuration(duration);
-        clip.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        clip.setInterpolator(spring);
         clip.setDuration(duration);
         set.addAnimation(scale);
         set.addAnimation(clip);
@@ -1065,9 +1084,10 @@ public class AppTransition implements Dump {
         final Animation clip = open ? new ClipRectAnimation(card, full)
                 : new ClipRectAnimation(full, card);
         final int duration = open ? KIRO_LAUNCH_DURATION : KIRO_CLOSE_DURATION;
-        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        final Interpolator spring = open ? KIRO_LAUNCH_INTERPOLATOR : KIRO_CLOSE_INTERPOLATOR;
+        scale.setInterpolator(spring);
         scale.setDuration(duration);
-        clip.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        clip.setInterpolator(spring);
         clip.setDuration(duration);
         set.addAnimation(scale);
         set.addAnimation(clip);
@@ -1091,13 +1111,14 @@ public class AppTransition implements Dump {
         }
         final float px = icon.exactCenterX() - frame.left;
         final float py = icon.exactCenterY() - frame.top;
-        final Animation scale = new ScaleAnimation(0.94f, 1f, 0.94f, 1f, px, py);
-        scale.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
+        // Beta 4.1 "Fluida": the home comes forward from where the launch left it (0.9) with the
+        // app's spring, brightening as the app reaches its icon
+        final Animation scale = new ScaleAnimation(0.9f, 1f, 0.9f, 1f, px, py);
+        scale.setInterpolator(KIRO_CLOSE_INTERPOLATOR);
         scale.setDuration(KIRO_CLOSE_DURATION);
-        final Animation fade = new AlphaAnimation(0f, 1f);
-        fade.setInterpolator(mDecelerateInterpolator);
-        // opaque again early: the rest of the close blends only the shrinking app over it
-        fade.setDuration(KIRO_CLOSE_DURATION * 2 / 5);
+        final Animation fade = new AlphaAnimation(0.25f, 1f);
+        fade.setInterpolator(KIRO_CLOSE_INTERPOLATOR);
+        fade.setDuration(KIRO_CLOSE_DURATION);
         final AnimationSet set = new AnimationSet(false);
         set.addAnimation(scale);
         set.addAnimation(fade);
@@ -1137,8 +1158,10 @@ public class AppTransition implements Dump {
         // longer than before, 2.1.1: the last 26%, so the hand-over to the icon is softer)
         // 3.0: from 66%, as Kiro Home 2.0 brings the icon back to catch it (CATCH_DELAY 210)
         // Beta 4.1: from 58% (the spring is nearly there by then), as Kiro Home's CATCH_DELAY
-        fade.setStartOffset(KIRO_CLOSE_DURATION * 58 / 100);
-        fade.setDuration(KIRO_CLOSE_DURATION * 42 / 100);
+        // Beta 4.1 "Fluida": over 110-230 ms, while the spring goes from 55% to 90% of the way:
+        // the app is seen shrinking, then melts into the icon Kiro Home brings back (CATCH_DELAY)
+        fade.setStartOffset(110);
+        fade.setDuration(120);
         set.addAnimation(fade);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
