@@ -21600,10 +21600,14 @@ public final class ActivityManagerService extends ActivityManagerNative
                     app.trimMemoryLevel = ComponentCallbacks2.TRIM_MEMORY_BACKGROUND;
                 } else {
                     if ((app.curProcState >= ActivityManager.PROCESS_STATE_IMPORTANT_BACKGROUND
-                            || app.systemNoUi) && app.pendingUiClean) {
+                            || app.systemNoUi) && app.pendingUiClean && app != mHomeProcess) {
                         // If this application is now in the background and it
                         // had done UI, then give it the special trim level to
                         // have it free UI resources.
+                        // KiroOS Beta 4.1: not the home. It is behind every app and comes
+                        // back many times a minute; freeing its textures made each return
+                        // upload all the icons again in the first frame (~30 ms, a stutter as
+                        // the app closes). It still gets the memory pressure trims.
                         final int level = ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN;
                         if (app.trimMemoryLevel < level && app.thread != null) {
                             try {
@@ -21640,7 +21644,8 @@ public final class ActivityManagerService extends ActivityManagerNative
                     app.procStateChanged = false;
                 }
                 if ((app.curProcState >= ActivityManager.PROCESS_STATE_IMPORTANT_BACKGROUND
-                        || app.systemNoUi) && app.pendingUiClean) {
+                        || app.systemNoUi) && app.pendingUiClean && app != mHomeProcess) {
+                    // KiroOS Beta 4.1: the home keeps its textures (see above)
                     if (app.trimMemoryLevel < ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
                             && app.thread != null) {
                         try {

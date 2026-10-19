@@ -6453,6 +6453,15 @@ public class WindowManagerService extends IWindowManager.Stub
                 "screenshotApplications()")) {
             throw new SecurityException("Requires READ_FRAME_BUFFER permission");
         }
+        // KiroOS Beta 4.1: no Recents thumbnail of an app still animating (opened and left at
+        // once): it would show the window mid-way, and the capture holds SurfaceFlinger's main
+        // thread for ~100 ms, freezing the animation. Recents keeps the task's last thumbnail.
+        synchronized (mWindowMap) {
+            final AppWindowToken t = findAppWindowToken(appToken);
+            if (t != null && (t.mAppAnimator.animating || t.mAppAnimator.animation != null)) {
+                return null;
+            }
+        }
         try {
             Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "screenshotApplications");
             return screenshotApplicationsInner(appToken, displayId, width, height, false,
