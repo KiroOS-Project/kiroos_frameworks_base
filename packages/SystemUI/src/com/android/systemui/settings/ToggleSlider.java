@@ -176,8 +176,74 @@ public class ToggleSlider extends RelativeLayout {
         mSun.setScaleY(0.9f + 0.2f * f);
     }
 
+    // --- KiroOS Beta 4.1: hold the slider without moving it for the display sheet -----------
+
+    private Runnable mOnLongPress;
+    private float mDownX, mDownY;
+    private int mDownValue;
+    private boolean mLongPressed;
+    private final Runnable mLongPressCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (mOnLongPress == null || !isAttachedToWindow()) {
+                return;
+            }
+            mLongPressed = true;
+            performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+            // the touch was not a change of brightness: put it back where it was, end the drag
+            final MotionEvent cancel = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);
+            ToggleSlider.super.dispatchTouchEvent(cancel);
+            cancel.recycle();
+            setValue(mDownValue);
+            if (mListener != null) {
+                mListener.onChanged(ToggleSlider.this, false, mToggle.isChecked(), mDownValue, true);
+            }
+            if (mMirrorController != null) {
+                mMirrorController.hideMirror();
+            }
+            mOnLongPress.run();
+        }
+    };
+
+    /** what holding the slider opens (the control centre's slider only) */
+    public void setOnKiroLongPress(Runnable r) {
+        mOnLongPress = r;
+    }
+
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (mOnLongPress != null) {
+            switch (ev.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    mDownX = ev.getX();
+                    mDownY = ev.getY();
+                    mDownValue = mSlider.getProgress();
+                    mLongPressed = false;
+                    removeCallbacks(mLongPressCheck);
+                    postDelayed(mLongPressCheck,
+                            android.view.ViewConfiguration.getLongPressTimeout());
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    final int slop = android.view.ViewConfiguration.get(getContext())
+                            .getScaledTouchSlop();
+                    if (Math.abs(ev.getX() - mDownX) > slop || Math.abs(ev.getY() - mDownY) > slop) {
+                        removeCallbacks(mLongPressCheck);
+                    }
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    removeCallbacks(mLongPressCheck);
+                    break;
+            }
+            if (mLongPressed) {
+                // the rest of this gesture belongs to the sheet, not to the slider
+                if (ev.getActionMasked() == MotionEvent.ACTION_UP
+                        || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                    mLongPressed = false;
+                }
+                return true;
+            }
+        }
         if (mMirror != null) {
             MotionEvent copy = ev.copy();
             mMirror.dispatchTouchEvent(copy);

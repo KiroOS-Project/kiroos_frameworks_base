@@ -159,14 +159,50 @@ public class AppTransition implements Dump {
     // KiroOS launch zoom (apps from the launcher, widgets, cards). 2.1.1: 380 -> 340 ms, the
     // emphasized curve already covers the screen at about 40% of it, the rest is the settle.
     // 3.0 (Home 2.0): 310 ms, the icon leaves as the window grows out of it
-    private static final int KIRO_LAUNCH_DURATION = 310;
+    // Beta 4.1: 400 ms on a spring (see KiroSpring): the icon grows with the window and stays
+    // visible through the first half, the app shows on it once it is large (createKiroLaunchZoom,
+    // createKiroIconThumbnail), the way current phones open apps
+    private static final int KIRO_LAUNCH_DURATION = 400;
     /**
      * the home steps back while the app grows out of the icon; 2.1.1: gone in 190 ms (was 260)
      * so for most of the launch SurfaceFlinger blends two layers (wallpaper, app), not three
      */
-    private static final int KIRO_HOME_RECEDE_DURATION = 190;
-    /** emphasized easing: leaves at once, settles long and soft (res interpolator kiro_emphasized) */
-    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR = new PathInterpolator(kiroEmphasized());
+    private static final int KIRO_HOME_RECEDE_DURATION = 220;
+    /** Beta 4.1: a critically soft spring with a slight landing (about 1.5% past, then home) */
+    private static final Interpolator KIRO_LAUNCH_INTERPOLATOR = new KiroSpring();
+
+    /**
+     * A damped spring, x(t) = 1 - e^(-z w t) (cos(wd t) + (z w / wd) sin(wd t)), normalised so it
+     * ends exactly at 1: it leaves quickly, glides, passes the target by a hair and settles.
+     */
+    private static final class KiroSpring implements Interpolator {
+        private static final float ZETA = 0.78f;   // damping ratio: about 1.5% overshoot
+        private static final float OMEGA = 10.5f;  // natural frequency over the whole animation
+        private final float mEnd;
+
+        KiroSpring() {
+            mEnd = raw(1f);
+        }
+
+        private static float raw(float t) {
+            final double wd = OMEGA * Math.sqrt(1 - ZETA * ZETA);
+            final double decay = Math.exp(-ZETA * OMEGA * t);
+            return (float) (1 - decay * (Math.cos(wd * t) + (ZETA * OMEGA / wd) * Math.sin(wd * t)));
+        }
+
+        @Override
+        public float getInterpolation(float t) {
+            if (t >= 1f) return 1f;
+            return raw(t) / mEnd;
+        }
+    }
+
+    /** Beta 4.1: when the window shows over the icon picture (fractions of the launch) */
+    private static final float KIRO_APP_SHOW_FROM = 0.28f;
+    private static final float KIRO_APP_SHOW_TO = 0.58f;
+    /** ...and when the icon picture leaves, once the app covers it */
+    private static final float KIRO_ICON_LEAVE_FROM = 0.48f;
+    private static final float KIRO_ICON_LEAVE_TO = 0.72f;
 
     private static Path kiroEmphasized() {
         final Path p = new Path();
@@ -754,6 +790,16 @@ public class AppTransition implements Dump {
      * (createKiroCloseToIcon).
      */
     private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight) {
+        return createKiroLaunchZoom(from, appWidth, appHeight, false);
+    }
+
+    /**
+     * withIcon (Beta 4.1): the icon's picture grows with the window (createKiroIconThumbnail):
+     * the window stays clear while it is small and shows over the icon once it is large, so
+     * what grows out of the icon is the icon itself, not a tiny squeezed app.
+     */
+    private Animation createKiroLaunchZoom(Rect from, int appWidth, int appHeight,
+            boolean withIcon) {
         final AnimationSet set = new AnimationSet(false);
         if (appWidth > 0 && appHeight > 0 && kiroIsWidget(from)) {
             addKiroWidgetMorph(set, from, appWidth, appHeight, true);
@@ -766,10 +812,18 @@ public class AppTransition implements Dump {
             scale.setDuration(KIRO_LAUNCH_DURATION);
             set.addAnimation(scale);
         }
-        // visible almost at once, so the icon-sized app is never a ghost
         final Animation alpha = new AlphaAnimation(0f, 1f);
-        alpha.setInterpolator(mLinearOutSlowInInterpolator);
-        alpha.setDuration(90);
+        if (withIcon && !from.isEmpty() && !kiroIsWidget(from)) {
+            // over the growing icon, once the window is large
+            alpha.setInterpolator(mDecelerateInterpolator);
+            alpha.setStartOffset((long) (KIRO_LAUNCH_DURATION * KIRO_APP_SHOW_FROM));
+            alpha.setDuration((long) (KIRO_LAUNCH_DURATION
+                    * (KIRO_APP_SHOW_TO - KIRO_APP_SHOW_FROM)));
+        } else {
+            // visible almost at once, so the icon-sized app is never a ghost
+            alpha.setInterpolator(mLinearOutSlowInInterpolator);
+            alpha.setDuration(90);
+        }
         set.addAnimation(alpha);
         set.setDetachWallpaper(true);
         set.setZAdjustment(Animation.ZORDER_TOP);
@@ -826,18 +880,22 @@ public class AppTransition implements Dump {
         grow.setInterpolator(KIRO_LAUNCH_INTERPOLATOR);
         grow.setDuration(KIRO_LAUNCH_DURATION);
         set.addAnimation(grow);
+        // Beta 4.1: the icon stays while it grows and leaves once the app covers it (it left
+        // at 30-160 ms before, so the growing icon was hardly seen)
         final Animation fade = new AlphaAnimation(1f, 0f);
-        fade.setInterpolator(mLinearOutSlowInInterpolator);
-        fade.setStartOffset(30);
-        fade.setDuration(130);
+        fade.setInterpolator(mFastOutLinearInInterpolator);
+        fade.setStartOffset((long) (KIRO_LAUNCH_DURATION * KIRO_ICON_LEAVE_FROM));
+        fade.setDuration((long) (KIRO_LAUNCH_DURATION
+                * (KIRO_ICON_LEAVE_TO - KIRO_ICON_LEAVE_FROM)));
         set.addAnimation(fade);
         set.setFillAfter(true);
         set.initialize(appWidth, appHeight, appWidth, appHeight);
         return set;
     }
 
-    /** how long a closing app takes to shrink into its icon (2.1.1: 360 -> 320 ms) */
-    private static final int KIRO_CLOSE_DURATION = 320;
+    /** how long a closing app takes to shrink into its icon (2.1.1: 360 -> 320 ms; Beta 4.1:
+     *  380 ms on the spring, smoother) */
+    private static final int KIRO_CLOSE_DURATION = 380;
     /** where each app's icon sits on the home, published by Kiro Home (kiroos_home_icons) */
     private volatile android.util.ArrayMap<String, Rect> mKiroHomeIcons;
     private boolean mKiroHomeIconsObserved;
@@ -1078,8 +1136,9 @@ public class AppTransition implements Dump {
         // the app follows its way down to the icon and melts into it on arrival (a little
         // longer than before, 2.1.1: the last 26%, so the hand-over to the icon is softer)
         // 3.0: from 66%, as Kiro Home 2.0 brings the icon back to catch it (CATCH_DELAY 210)
-        fade.setStartOffset(KIRO_CLOSE_DURATION * 66 / 100);
-        fade.setDuration(KIRO_CLOSE_DURATION * 34 / 100);
+        // Beta 4.1: from 58% (the spring is nearly there by then), as Kiro Home's CATCH_DELAY
+        fade.setStartOffset(KIRO_CLOSE_DURATION * 58 / 100);
+        fade.setDuration(KIRO_CLOSE_DURATION * 42 / 100);
         set.addAnimation(fade);
         set.setZAdjustment(Animation.ZORDER_TOP);
         set.setFillAfter(true);
@@ -1693,7 +1752,8 @@ public class AppTransition implements Dump {
         if (thumbTransitState == THUMBNAIL_TRANSITION_ENTER_SCALE_UP && !mTmpRect.isEmpty()) {
             final Rect icon = new Rect(mTmpRect);
             icon.offset(-containingFrame.left, -containingFrame.top);
-            a = createKiroLaunchZoom(icon, appWidth, appHeight);
+            // the icon's picture is there (Kiro Home): the app shows over it once large
+            a = createKiroLaunchZoom(icon, appWidth, appHeight, thumbnailHeader != null);
             a.initialize(appWidth, appHeight, appWidth, appHeight);
             return a;
         }

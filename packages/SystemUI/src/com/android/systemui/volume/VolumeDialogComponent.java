@@ -53,7 +53,8 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
     private final Context mContext;
     private final VolumeDialogController mController;
     private final ZenModeController mZenModeController;
-    private final VolumeDialog mDialog;
+    /** KiroOS Beta 4.1: the KiroOS volume panel (VolumeDialog stays for its Callback type) */
+    private final KiroVolumeDialog mDialog;
     private VolumePolicy mVolumePolicy = new VolumePolicy(
             DEFAULT_VOLUME_DOWN_TO_ENTER_SILENT,  // volumeDownToEnterSilent
             DEFAULT_VOLUME_UP_TO_EXIT_SILENT,  // volumeUpToExitSilent
@@ -72,7 +73,7 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
             }
         };
         mZenModeController = zen;
-        mDialog = new VolumeDialog(context, WindowManager.LayoutParams.TYPE_VOLUME_OVERLAY,
+        mDialog = new KiroVolumeDialog(context, WindowManager.LayoutParams.TYPE_VOLUME_OVERLAY,
                 mController, zen, mVolumeDialogCallback);
         applyConfiguration();
         TunerService.get(mContext).addTunable(this, VOLUME_DOWN_SILENT, VOLUME_UP_SILENT,

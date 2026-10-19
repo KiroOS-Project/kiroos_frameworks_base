@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS Beta 4.1: the display sheet (hold the brightness slider) -->
+<resources>
+    <string name="kiroos_display_sheet_title">Экран</string>
+    <string name="kiroos_display_sheet_light">Светлая</string>
+    <string name="kiroos_display_sheet_dark">Тёмная</string>
+    <string name="kiroos_display_sheet_eye">Защита глаз</string>
+    <string name="kiroos_display_sheet_eye_summary">Более тёплые цвета, легче для глаз</string>
+    <string name="kiroos_display_sheet_settings">Настройки экрана</string>
+    <!-- the volume panel's button that shows the other volumes -->
+    <string name="kiroos_volume_more">Другие громкости</string>
+</resources>

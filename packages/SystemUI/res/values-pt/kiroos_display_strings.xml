@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS Beta 4.1: the display sheet (hold the brightness slider) -->
+<resources>
+    <string name="kiroos_display_sheet_title">Tela</string>
+    <string name="kiroos_display_sheet_light">Claro</string>
+    <string name="kiroos_display_sheet_dark">Escuro</string>
+    <string name="kiroos_display_sheet_eye">Proteção ocular</string>
+    <string name="kiroos_display_sheet_eye_summary">Cores mais quentes, mais descanso para os olhos</string>
+    <string name="kiroos_display_sheet_settings">Configurações da tela</string>
+    <!-- the volume panel's button that shows the other volumes -->
+    <string name="kiroos_volume_more">Mais volumes</string>
+</resources>

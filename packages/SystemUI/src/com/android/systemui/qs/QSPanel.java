@@ -111,9 +111,18 @@ public class QSPanel extends LinearLayout implements Tunable, Callback {
 
         updateResources();
 
+        final ToggleSlider brightness = (ToggleSlider) findViewById(R.id.brightness_slider);
         mBrightnessController = new BrightnessController(getContext(),
-                (ImageView) findViewById(R.id.brightness_icon),
-                (ToggleSlider) findViewById(R.id.brightness_slider));
+                (ImageView) findViewById(R.id.brightness_icon), brightness);
+        // KiroOS Beta 4.1: hold the brightness slider for the theme and Eye protection
+        if (brightness != null) {
+            brightness.setOnKiroLongPress(new Runnable() {
+                @Override
+                public void run() {
+                    new com.android.systemui.kiroos.KiroDisplaySheet(mContext).show();
+                }
+            });
+        }
 
         mAutoBrightnessView = (ImageView) findViewById(R.id.brightness_icon);
     }

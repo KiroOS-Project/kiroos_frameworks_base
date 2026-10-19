@@ -170,6 +170,9 @@
     <!-- manage cmsettings -->
     <uses-permission android:name="cyanogenmod.permission.WRITE_SETTINGS" />
     <uses-permission android:name="cyanogenmod.permission.WRITE_SECURE_SETTINGS" />
+    <!-- KiroOS Beta 4.1: the display sheet (hold the brightness slider): theme and Eye protection -->
+    <uses-permission android:name="android.permission.MODIFY_DAY_NIGHT_MODE" />
+    <uses-permission android:name="cyanogenmod.permission.MANAGE_LIVEDISPLAY" />
 
     <!-- Weather -->
     <uses-permission android:name="com.cyanogenmod.lockclock.permission.READ_WEATHER" />

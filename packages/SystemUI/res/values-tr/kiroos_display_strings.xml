@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KiroOS Beta 4.1: the display sheet (hold the brightness slider) -->
+<resources>
+    <string name="kiroos_display_sheet_title">Ekran</string>
+    <string name="kiroos_display_sheet_light">Açık</string>
+    <string name="kiroos_display_sheet_dark">Koyu</string>
+    <string name="kiroos_display_sheet_eye">Göz koruması</string>
+    <string name="kiroos_display_sheet_eye_summary">Daha sıcak renkler, gözleri daha az yorar</string>
+    <string name="kiroos_display_sheet_settings">Ekran ayarları</string>
+    <!-- the volume panel's button that shows the other volumes -->
+    <string name="kiroos_volume_more">Diğer ses düzeyleri</string>
+</resources>
