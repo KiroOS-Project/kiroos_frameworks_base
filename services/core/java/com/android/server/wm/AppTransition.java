@@ -207,12 +207,17 @@ public class AppTransition implements Dump {
         }
     }
 
-    /** Beta 4.1: when the window shows over the icon picture (fractions of the launch) */
-    private static final float KIRO_APP_SHOW_FROM = 0.28f;
-    private static final float KIRO_APP_SHOW_TO = 0.58f;
+    /**
+     * Beta 4.1: when the window shows under the growing icon picture (fractions of the launch's
+     * time). "Fluida": the app comes in while the spring goes from 25% to 60% of the way
+     * (70-136 ms of 620) and the icon leaves just after it (95-170 ms), as in the preview: the
+     * icon grows out of its place and dissolves into the app while it is still small.
+     */
+    private static final float KIRO_APP_SHOW_FROM = 0.113f;
+    private static final float KIRO_APP_SHOW_TO = 0.219f;
     /** ...and when the icon picture leaves, once the app covers it */
-    private static final float KIRO_ICON_LEAVE_FROM = 0.48f;
-    private static final float KIRO_ICON_LEAVE_TO = 0.72f;
+    private static final float KIRO_ICON_LEAVE_FROM = 0.153f;
+    private static final float KIRO_ICON_LEAVE_TO = 0.274f;
 
     private static Path kiroEmphasized() {
         final Path p = new Path();
