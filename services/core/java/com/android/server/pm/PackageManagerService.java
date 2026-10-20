@@ -15932,6 +15932,14 @@ public class PackageManagerService extends IPackageManager.Stub {
                 flags);
     }
 
+    /** KiroOS: a package of the system image (also when updated, like Play Store) */
+    private boolean isKiroProtectedPackage(String packageName) {
+        synchronized (mPackages) {
+            final PackageSetting ps = mSettings.mPackages.get(packageName);
+            return ps != null && (ps.pkgFlags & ApplicationInfo.FLAG_SYSTEM) != 0;
+        }
+    }
+
     @Override
     public void deletePackage(final String packageName,
             final IPackageDeleteObserver2 observer, final int userId, final int deleteFlags) {
@@ -15969,6 +15977,18 @@ public class PackageManagerService extends IPackageManager.Stub {
         }
 
         if (!deleteAllUsers && getBlockUninstallForUser(packageName, userId)) {
+            try {
+                observer.onPackageDeleted(packageName,
+                        PackageManager.DELETE_FAILED_OWNER_BLOCKED, null);
+            } catch (RemoteException re) {
+            }
+            return;
+        }
+
+        // KiroOS: the apps that come with the system (Play Store too) can't be uninstalled, nor
+        // their updates; only from adb
+        if (uid != Process.SHELL_UID && uid != Process.ROOT_UID && isKiroProtectedPackage(packageName)) {
+            Slog.i(TAG, "Not uninstalling " + packageName + ": it comes with the system");
             try {
                 observer.onPackageDeleted(packageName,
                         PackageManager.DELETE_FAILED_OWNER_BLOCKED, null);

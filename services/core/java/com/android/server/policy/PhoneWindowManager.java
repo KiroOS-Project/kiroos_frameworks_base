@@ -877,7 +877,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_CAMERA_LONG_PRESS = 21;
     private static final int MSG_TOGGLE_TORCH = 22;
     private static final int MSG_BACK_DELAYED_PRESS = 23;
-    private static final int MSG_KIRO_POWER_MENU = 24;
     private static final int MSG_KIRO_POWER_CHORD = 25;
 
     private static final int MSG_REQUEST_TRANSIENT_BARS_ARG_STATUS = 0;
@@ -951,13 +950,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     // KiroOS: Power + Volume Up still held together: the power menu
                     if (mScreenshotChordPowerKeyTriggered && mScreenshotChordVolumeUpKeyTriggered) {
                         performHapticFeedbackLw(null, HapticFeedbackConstants.LONG_PRESS, false);
-                        showGlobalActionsInternal();
-                    }
-                    break;
-                case MSG_KIRO_POWER_MENU:
-                    // still held: the power menu, as always
-                    if (mKiroPowerKaiPending) {
-                        mKiroPowerKaiPending = false;
                         showGlobalActionsInternal();
                     }
                     break;
@@ -1468,14 +1460,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     private void interceptPowerKeyUp(KeyEvent event, boolean interactive, boolean canceled) {
         kiroPowerChordReleased();
-        if (mKiroPowerKaiPending) {
-            // KiroOS: released after the long press but before the power menu: kAI
-            mKiroPowerKaiPending = false;
-            mHandler.removeMessages(MSG_KIRO_POWER_MENU);
-            if (!canceled) {
-                launchKai();
-            }
-        }
         final boolean handled = canceled || mPowerKeyHandled;
         mScreenshotChordPowerKeyTriggered = false;
         cancelPendingScreenshotChordAction();
@@ -1560,6 +1544,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         } else if (count == 3) {
             powerMultiPressAction(eventTime, interactive, mTriplePressOnPowerBehavior);
         } else if (interactive && !mBeganFromNonInteractive) {
+            if (kaiInFront()) {
+                // KiroOS: a short press while kAI's card is up closes the card, the screen stays on
+                closeKai();
+                return;
+            }
             switch (mShortPressOnPowerBehavior) {
                 case SHORT_PRESS_POWER_NOTHING:
                     break;
@@ -1640,15 +1629,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             break;
         case LONG_PRESS_POWER_GLOBAL_ACTIONS:
             mPowerKeyHandled = true;
+            final boolean kai = kaiOnPowerWanted();
+            if (kai && isKeyguardShowingAndNotOccluded()) {
+                // KiroOS: over the lock screen holding Power does nothing (no kAI there, and
+                // the power menu is Power + Volume Up)
+                break;
+            }
             if (!performHapticFeedbackLw(null, HapticFeedbackConstants.LONG_PRESS, false)) {
                 performAuditoryFeedbackForAccessibilityIfNeed();
             }
-            if (kaiOnPowerEnabled()) {
-                // KiroOS: hold Power and let go -> kAI; keep holding -> the power menu
-                mKiroPowerKaiPending = true;
-                Message menu = mHandler.obtainMessage(MSG_KIRO_POWER_MENU);
-                menu.setAsynchronous(true);
-                mHandler.sendMessageDelayed(menu, KIRO_POWER_MENU_EXTRA_MS);
+            if (kai) {
+                // KiroOS: holding Power opens kAI, never the power menu
+                launchKai();
                 break;
             }
             showGlobalActionsInternal();
@@ -1672,15 +1664,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
 
-    /** KiroOS: long press on Power opens kAI (Settings > Buttons > Hold for kAI), the power
-     *  menu needs a longer hold. Not over the lock screen, where the power menu stays as it is. */
-    private static final long KIRO_POWER_MENU_EXTRA_MS = 1500;
-    private boolean mKiroPowerKaiPending;
-
-    private boolean kaiOnPowerEnabled() {
-        if (isKeyguardShowingAndNotOccluded()) {
-            return false;
-        }
+    /** KiroOS: long press on Power opens kAI (Settings > Buttons > Hold for kAI); turned off
+     *  there, holding Power brings the power menu back as on stock Android. */
+    private boolean kaiOnPowerWanted() {
         if (Settings.System.getIntForUser(mContext.getContentResolver(),
                 "kiroos_power_kai", 1, UserHandle.USER_CURRENT) == 0) {
             return false;
@@ -1701,6 +1687,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final long KIRO_POWER_CHORD_DELAY_MS = 500;
     /** the two keys of a quick press go down within this of each other */
     private static final long KIRO_POWER_CHORD_QUICK_MS = 300;
+    /** Volume Up waits this long for Power before changing the volume */
+    private static final long KIRO_VOLUME_UP_CHORD_WAIT_MS = 250;
     private long mKiroVolumeUpKeyTime;
     private boolean mKiroVolumeUpConsumed;
     private boolean mKiroPowerChordQuick;
@@ -1713,9 +1701,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mKiroPowerChordQuick = Math.abs(mScreenshotChordPowerKeyTime - mKiroVolumeUpKeyTime)
                 <= KIRO_POWER_CHORD_QUICK_MS;
         cancelPendingPowerKeyAction();
-        // not kAI either, even if Power was already held long enough for it
-        mKiroPowerKaiPending = false;
-        mHandler.removeMessages(MSG_KIRO_POWER_MENU);
         mHandler.removeMessages(MSG_KIRO_POWER_CHORD);
         final Message msg = mHandler.obtainMessage(MSG_KIRO_POWER_CHORD);
         msg.setAsynchronous(true);
@@ -1744,6 +1729,26 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             startActivityAsUser(intent, UserHandle.CURRENT_OR_SELF);
         } catch (Exception e) {
             Slog.w(TAG, "kAI not started", e);
+        }
+    }
+
+    /** kAI's card is the focused window */
+    private boolean kaiInFront() {
+        final WindowState focused = mFocusedWindow;
+        return focused != null && "com.kiroos.kai".equals(focused.getAttrs().packageName)
+                && !isKeyguardShowingAndNotOccluded();
+    }
+
+    /** the card closes itself with its exit animation (KaiOverlayActivity.onNewIntent) */
+    private void closeKai() {
+        final Intent intent = new Intent(Intent.ACTION_MAIN)
+                .setClassName("com.kiroos.kai", "com.kiroos.kai.KaiOverlayActivity")
+                .putExtra("close", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivityAsUser(intent, UserHandle.CURRENT_OR_SELF);
+        } catch (Exception e) {
+            Slog.w(TAG, "kAI not closed", e);
         }
     }
 
@@ -2657,6 +2662,16 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 updateWakeGestureListenerLp();
             }
 
+            // KiroOS Beta 5: the navigation bar switches live (dev_force_show_navbar); a bar
+            // turned on before with the restart-only property moves over to it, once
+            if ("0".equals(SystemProperties.get("persist.sys.qemu.mainkeys"))) {
+                try {
+                    CMSettings.Global.putInt(resolver, CMSettings.Global.DEV_FORCE_SHOW_NAVBAR, 1);
+                    SystemProperties.set("persist.sys.qemu.mainkeys", "1");
+                } catch (RuntimeException e) {
+                    // the settings are not up yet: the next update does it
+                }
+            }
             int devForceNavbar = CMSettings.Global.getIntForUser(resolver,
                     CMSettings.Global.DEV_FORCE_SHOW_NAVBAR, 0, UserHandle.USER_CURRENT);
             if (devForceNavbar != mDevForceNavbar) {
@@ -3827,8 +3842,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             if (down && repeatCount == 0 && mScreenshotChordVolumeUpKeyTriggered
                     && !mScreenshotChordPowerKeyTriggered) {
                 final long now = SystemClock.uptimeMillis();
-                final long timeoutTime = mKiroVolumeUpKeyTime
-                        + SCREENSHOT_CHORD_DEBOUNCE_DELAY_MILLIS;
+                // a little longer than the screenshot's 150 ms: Power often comes a bit late,
+                // and the volume must not go up before the power menu
+                final long timeoutTime = mKiroVolumeUpKeyTime + KIRO_VOLUME_UP_CHORD_WAIT_MS;
                 if (now < timeoutTime) {
                     return timeoutTime - now;
                 }

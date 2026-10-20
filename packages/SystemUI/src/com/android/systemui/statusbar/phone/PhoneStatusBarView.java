@@ -148,6 +148,9 @@ public class PhoneStatusBarView extends PanelBar {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (kiroClockTouch(event)) {
+            return true;
+        }
         boolean barConsumedEvent = mBar.interceptTouchEvent(event);
 
         if (DEBUG_GESTURES) {
@@ -185,6 +188,89 @@ public class PhoneStatusBarView extends PanelBar {
     public void onExpandingFinished() {
         super.onExpandingFinished();
         mScrimController.onExpandingFinished();
+    }
+
+    /*
+     * KiroOS Beta 5: holding the clock shows the seconds (12:56:10), holding it again hides them.
+     * The touch still goes to the panel as usual (pulling down from the clock works); only once
+     * the hold fires is the panel told the touch is over, and the rest of it is swallowed.
+     */
+    private boolean mKiroClockHeld;
+    private float mKiroDownX, mKiroDownY;
+    private final Runnable mKiroClockHold = new Runnable() {
+        @Override
+        public void run() {
+            mKiroClockHeld = true;
+            performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+            final com.android.systemui.tuner.TunerService tuner =
+                    com.android.systemui.tuner.TunerService.get(getContext());
+            final boolean seconds = tuner.getValue(
+                    com.android.systemui.statusbar.policy.Clock.CLOCK_SECONDS, 0) != 0;
+            tuner.setValue(com.android.systemui.statusbar.policy.Clock.CLOCK_SECONDS,
+                    seconds ? 0 : 1);
+            // the panel lets go of this touch: a lift where it went down, which closes the panel
+            // again (a CANCEL would open it)
+            final long now = android.os.SystemClock.uptimeMillis();
+            final MotionEvent up = MotionEvent.obtain(now, now, MotionEvent.ACTION_UP,
+                    mKiroDownX, mKiroDownY, 0);
+            mBar.interceptTouchEvent(up);
+            PhoneStatusBarView.super.onTouchEvent(up);
+            up.recycle();
+        }
+    };
+
+    private boolean kiroClockTouch(MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                mKiroClockHeld = false;
+                removeCallbacks(mKiroClockHold);
+                if (overVisibleClock(event.getX(), event.getY())) {
+                    mKiroDownX = event.getX();
+                    mKiroDownY = event.getY();
+                    postDelayed(mKiroClockHold, android.view.ViewConfiguration.getLongPressTimeout());
+                }
+                return false;
+            case MotionEvent.ACTION_MOVE:
+                if (!mKiroClockHeld) {
+                    final int slop = android.view.ViewConfiguration.get(getContext())
+                            .getScaledTouchSlop();
+                    if (Math.abs(event.getX() - mKiroDownX) > slop
+                            || Math.abs(event.getY() - mKiroDownY) > slop) {
+                        removeCallbacks(mKiroClockHold);
+                    }
+                }
+                return mKiroClockHeld;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                removeCallbacks(mKiroClockHold);
+                final boolean held = mKiroClockHeld;
+                mKiroClockHeld = false;
+                return held;
+            default:
+                return mKiroClockHeld;
+        }
+    }
+
+    private final int[] mKiroLoc = new int[2];
+
+    private boolean overVisibleClock(float x, float y) {
+        final int[] ids = { R.id.left_clock, R.id.clock, R.id.center_clock };
+        getLocationOnScreen(mKiroLoc);
+        final float sx = x + mKiroLoc[0], sy = y + mKiroLoc[1];
+        for (int id : ids) {
+            final View clock = findViewById(id);
+            if (clock == null || !clock.isShown() || clock.getWidth() == 0) {
+                continue;
+            }
+            clock.getLocationOnScreen(mKiroLoc);
+            // a little wider than the digits, so the thumb finds it
+            final int pad = (int) (8 * getResources().getDisplayMetrics().density);
+            if (sx >= mKiroLoc[0] - pad && sx <= mKiroLoc[0] + clock.getWidth() + pad
+                    && sy >= mKiroLoc[1] - pad && sy <= mKiroLoc[1] + clock.getHeight() + pad) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
